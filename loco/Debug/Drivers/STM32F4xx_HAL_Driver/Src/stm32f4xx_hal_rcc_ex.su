@@ -1,0 +1,8 @@
+stm32f4xx_hal_rcc_ex.c:107:19:HAL_RCCEx_PeriphCLKConfig	48	static
+stm32f4xx_hal_rcc_ex.c:509:6:HAL_RCCEx_GetPeriphCLKConfig	20	static
+stm32f4xx_hal_rcc_ex.c:589:10:HAL_RCCEx_GetPeriphCLKFreq	0	static
+stm32f4xx_hal_rcc_ex.c:2774:6:HAL_RCCEx_SelectLSEMode	0	static
+stm32f4xx_hal_rcc_ex.c:2824:10:HAL_RCC_GetSysClockFreq	0	static
+stm32f4xx_hal_rcc_ex.c:2921:6:HAL_RCC_DeInit	0	static
+stm32f4xx_hal_rcc_ex.c:3033:19:HAL_RCC_OscConfig	32	static
+stm32f4xx_hal_rcc_ex.c:3354:6:HAL_RCC_GetOscConfig	8	static

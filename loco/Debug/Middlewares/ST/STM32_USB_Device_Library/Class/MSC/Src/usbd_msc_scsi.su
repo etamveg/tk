@@ -1,0 +1,2 @@
+usbd_msc_scsi.c:422:6:SCSI_SenseCode	8	static
+usbd_msc_scsi.c:121:8:SCSI_ProcessCmd	40	static
