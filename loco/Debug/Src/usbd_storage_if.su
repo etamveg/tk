@@ -1,7 +1,0 @@
-usbd_storage_if.c:192:8:STORAGE_GetCapacity_FS	0	static
-usbd_storage_if.c:222:9:STORAGE_IsWriteProtected_FS	0	static
-usbd_storage_if.c:253:8:STORAGE_Write_FS	0	static
-usbd_storage_if.c:270:8:STORAGE_GetMaxLun_FS	0	static
-usbd_storage_if.c:236:8:STORAGE_Read_FS	0	static
-usbd_storage_if.c:178:8:STORAGE_Init_FS	0	static
-usbd_storage_if.c:208:9:STORAGE_IsReady_FS	0	static
