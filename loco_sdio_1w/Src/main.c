@@ -165,6 +165,10 @@ void debugTask(void const * argument) {
 		}
 	  }
 	}
+
+	while(1){
+		osDelay(1);
+	}
 }
 
 osThreadId buttonReadTaskHandle;
@@ -197,9 +201,38 @@ void buttonReadTask(void const * argument) {
 	}
 
 }
+uint8_t uartReadBuffer[100];
+uint8_t puartReadBuffer=0;
+uint8_t lineEndReceived=0;
+void processMsg( void ) {
+	int i;
+	for(i=0;i<puartReadBuffer;i++){
+		puartReadBuffer=0;
+		uartReadBuffer[i]=0;
+	}
+}
+void notifyReadTask(char data_in) {
+	uartReadBuffer[puartReadBuffer] = data_in;
+	puartReadBuffer++;
+	if(data_in == '\n' || data_in == '\r') {
+		lineEndReceived = 1;
+	}
+}
+osThreadId uartReadTaskHandle;
 
+void uartReadTask(void const * argument) {
+
+	HAL_UART_Transmit_IT(USART2_getHandle(), "Nucleo alive!\r\n", 14);
+	while(1) {
+		if(lineEndReceived) {
+			processMsg();
+		}
+		osDelay(1000);
+	}
+
+}
 /* USER CODE END 0 */
-
+extern uint8_t uartReadByte;
 int main(void)
 {
 
@@ -218,7 +251,8 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 //  MX_TIM10_Init();
-//  MX_USART2_UART_Init();
+  MX_USART2_UART_Init();
+  HAL_UART_Receive_IT(USART2_getHandle(), &uartReadByte, 1);
   //MX_WWDG_Init();
 //  MX_SPI1_Init();
   MX_CRC_Init();
@@ -232,11 +266,14 @@ int main(void)
   /* Call init function for freertos objects (in freertos.c) */
   MX_FREERTOS_Init();
 
-  osThreadDef(debug, debugTask, osPriorityNormal, 0, 128);
-  debugTaskHandle = osThreadCreate(osThread(debug), NULL);
+  //osThreadDef(debug, debugTask, osPriorityNormal, 0, 128);
+  //debugTaskHandle = osThreadCreate(osThread(debug), NULL);
 
   osThreadDef(button, buttonReadTask, osPriorityNormal, 0, 128);
   buttonReadTaskHandle = osThreadCreate(osThread(button), NULL);
+
+  osThreadDef(uart, uartReadTask, osPriorityNormal, 0, 128);
+  uartReadTaskHandle = osThreadCreate(osThread(uart), NULL);
   /* Start scheduler */
   osKernelStart();
   

@@ -44,7 +44,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usart.h"
-
+#include "main.h"
 #include "gpio.h"
 
 /* USER CODE BEGIN 0 */
@@ -97,7 +97,8 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN USART2_MspInit 1 */
-
+    HAL_NVIC_SetPriority(USART2_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(USART2_IRQn);
   /* USER CODE END USART2_MspInit 1 */
   }
 }
@@ -126,7 +127,19 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 } 
 
 /* USER CODE BEGIN 1 */
+void USART2_IRQHandler(void){
+	HAL_UART_IRQHandler(&huart2);
+}
 
+UART_HandleTypeDef* USART2_getHandle( void ) {
+	return &huart2;
+}
+
+uint8_t uartReadByte;
+void HAL_UART_RxCpltCallback (UART_HandleTypeDef *huart) {
+	notifyReadTask(uartReadByte);
+	HAL_UART_Receive_IT(USART2_getHandle(), &uartReadByte, 1);
+}
 /* USER CODE END 1 */
 
 /**
