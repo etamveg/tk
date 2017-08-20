@@ -57,21 +57,21 @@
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
-#define button_1_Pin GPIO_PIN_2
-#define button_1_GPIO_Port GPIOA
+#define button_1_Pin GPIO_PIN_0
+#define button_1_GPIO_Port GPIOC
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
-#define button_2_Pin GPIO_PIN_3
-#define button_2_GPIO_Port GPIOA
+#define button_2_Pin GPIO_PIN_1
+#define button_2_GPIO_Port GPIOC
 #define SPI_SS_Pin GPIO_PIN_5
 #define SPI_SS_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
+void notifyReadTask(char data_in);
 /* USER CODE END Private defines */
 
 /**

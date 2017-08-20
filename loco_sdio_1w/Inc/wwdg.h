@@ -65,7 +65,7 @@ extern WWDG_HandleTypeDef hwwdg;
 extern void Error_Handler(void);
 
 void MX_WWDG_Init(void);
-
+void WWDG_Refresh( void );
 /* USER CODE BEGIN Prototypes */
 
 /* USER CODE END Prototypes */

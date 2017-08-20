@@ -85,7 +85,13 @@ void HAL_WWDG_MspInit(WWDG_HandleTypeDef* wwdgHandle)
  
 
 /* USER CODE BEGIN 1 */
+void WWDG_Refresh( void ) {
+	HAL_WWDG_Refresh(&hwwdg);
+}
 
+void WWDG_IRQHandler(void) {
+	HAL_WWDG_IRQHandler(&hwwdg);
+}
 /* USER CODE END 1 */
 
 /**

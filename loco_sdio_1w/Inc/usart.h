@@ -67,7 +67,7 @@ extern void Error_Handler(void);
 void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+UART_HandleTypeDef* USART2_getHandle( void );
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus
