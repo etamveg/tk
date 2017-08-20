@@ -128,7 +128,17 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 
 /* USER CODE BEGIN 1 */
 void USART2_IRQHandler(void){
-	HAL_UART_IRQHandler(&huart2);
+       HAL_UART_IRQHandler(&huart2);
+}
+
+UART_HandleTypeDef* USART2_getHandle( void ) {
+       return &huart2;
+}
+
+uint8_t uartReadByte;
+void HAL_UART_RxCpltCallback (UART_HandleTypeDef *huart) {
+       notifyReadTask(uartReadByte);
+       HAL_UART_Receive_IT(USART2_getHandle(), &uartReadByte, 1);
 }
 
 UART_HandleTypeDef* USART2_getHandle( void ) {

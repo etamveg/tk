@@ -50,7 +50,7 @@ void TIM1_UP_TIM10_IRQHandler(void);
 void TIM4_IRQHandler(void);
 void OTG_FS_IRQHandler(void);
 void USART2_IRQHandler(void);
-
+void WWDG_IRQHandler(void);
 #ifdef __cplusplus
 }
 #endif

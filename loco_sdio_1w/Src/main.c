@@ -83,15 +83,14 @@ FIL MyFile;          /* File object */
 extern char SD_Path[];/* StartDefaultTask function */
 FRESULT res;                                          /* FatFs function common result code */
 uint32_t byteswritten, bytesread;                     /* File write/read counts */
-uint8_t wtext[] = "This is STM32 working with FatFs es pina"; /* File write buffer */
+uint8_t wtext[] = "This is STM32 working with FatFs"; /* File write buffer */
 uint8_t rtext[100];
 
 void debugTask(void const * argument) {
 
-	osDelay(500);
-
+	osDelay(100);
 	/*##-2- Register the file system object to the FatFs module ##############*/
-	if(f_mount(&SDDISKFatFs, (TCHAR const*)SD_Path, 0) != FR_OK)
+	if(f_mount(&SDDISKFatFs, "", 1/*(TCHAR const*)SD_Path, 0*/) != FR_OK)
 	{
 		HAL_UART_Transmit_IT(USART2_getHandle(), "SD mount not OK\r", 16);
 		osDelay(100);
@@ -101,54 +100,60 @@ void debugTask(void const * argument) {
 	else
 	{
 		HAL_UART_Transmit_IT(USART2_getHandle(), "SD mount OK\r", 12);
-		osDelay(100);
-		/*##-3- Create a FAT file system (format) on the logical drive #########*/
-		if(f_mkfs((TCHAR const*)SD_Path, 0, 0) != FR_OK)
+        	osDelay(100);
+//		if(f_mkfs((TCHAR const*)SD_Path, 0, 0) != FR_OK)
+//		{
+//			HAL_UART_Transmit_IT(USART2_getHandle(), "Make fs not OK\r", 15);
+//			osDelay(100);
+//			/* FatFs Format Error */
+//			Error_Handler();
+//		}
+//		else
 		{
-			HAL_UART_Transmit_IT(USART2_getHandle(), "Make fs not OK\r", 15);
-			osDelay(100);
-			/* FatFs Format Error */
-			Error_Handler();
-		}
-		else
-		{
-			HAL_UART_Transmit_IT(USART2_getHandle(), "Make fs OK\r", 11);
-			osDelay(100);
+        	 HAL_UART_Transmit_IT(USART2_getHandle(), "Make fs OK\r", 11);
+             osDelay(100);
+
 			/*##-4- Create and Open a new text file object with write access #####*/
-			if(f_open(&MyFile, "STM32.TXT", FA_OPEN_ALWAYS | FA_WRITE) != FR_OK)
+			if(f_open(&MyFile, "STM32asd.TXT", FA_CREATE_ALWAYS | FA_WRITE) != FR_OK)
 			{
-				HAL_UART_Transmit_IT(USART2_getHandle(), "fopen not OK\r", 13);
-				osDelay(100);
+				 HAL_UART_Transmit_IT(USART2_getHandle(), "fopen not OK\r", 13);
+                 osDelay(100);
+
 				/* 'STM32.TXT' file Open for write Error */
 				Error_Handler();
 			}
 			else
 			{
-				HAL_UART_Transmit_IT(USART2_getHandle(), "fopen OK\r", 9);
-				osDelay(100);
-				/*##-5- Write data to the text file ################################*/
-				res = f_write(&MyFile, wtext, sizeof(wtext), (void *)&byteswritten);
+				 HAL_UART_Transmit_IT(USART2_getHandle(), "fopen OK\r", 9);
+                 osDelay(100);
 
-				if((byteswritten == 0) || (res != FR_OK))
+                 /*##-5- Write data to the text file ################################*/
+				 res = f_write(&MyFile, wtext, sizeof(wtext), (void *)&byteswritten);
+
+				 if((byteswritten == 0) || (res != FR_OK))
 				{
-					HAL_UART_Transmit_IT(USART2_getHandle(), "fwrite not OK\r", 14);
-					osDelay(100);
+					 HAL_UART_Transmit_IT(USART2_getHandle(), "fwrite not OK\r", 14);
+                     osDelay(100);
+
 					/* 'STM32.TXT' file Write or EOF Error */
 					Error_Handler();
 				}
 				else
 				{
 					HAL_UART_Transmit_IT(USART2_getHandle(), "fwrite OK\r", 10);
-					osDelay(100);
+                    osDelay(100);
 					/*##-6- Close the open text file #################################*/
 					f_close(&MyFile);
-					HAL_UART_Transmit_IT(USART2_getHandle(), "File closed, read back!\r", 24);
-					osDelay(100);
+                    HAL_UART_Transmit_IT(USART2_getHandle(), "File closed, read back!\r", 24);
+                    osDelay(100);
+
+
 					/*##-7- Open the text file object with read access ###############*/
-					if(f_open(&MyFile, "STM32.TXT", FA_READ) != FR_OK)
+					if(f_open(&MyFile, "STM32asd.TXT", FA_READ) != FR_OK)
 					{
 						HAL_UART_Transmit_IT(USART2_getHandle(), "fopen not OK\r", 13);
-						osDelay(100);
+				        osDelay(100);
+
 						/* 'STM32.TXT' file Open for read Error */
 						Error_Handler();
 					}
@@ -162,11 +167,11 @@ void debugTask(void const * argument) {
 						if((bytesread == 0) || (res != FR_OK))
 						{
 							if(bytesread == 0) {
-								HAL_UART_Transmit_IT(USART2_getHandle(), "0 bytes read back error\r", 25);
-								osDelay(100);
+								   HAL_UART_Transmit_IT(USART2_getHandle(), "0 bytes read back error\r", 25);
+								   osDelay(100);
 							} else {
-								HAL_UART_Transmit_IT(USART2_getHandle(), "fread result not ok\r", 20);
-								osDelay(100);
+								   HAL_UART_Transmit_IT(USART2_getHandle(), "fread result not ok\r", 20);
+								   osDelay(100);
 							}
 
 							/* 'STM32.TXT' file Read or EOF Error */
@@ -188,15 +193,22 @@ void debugTask(void const * argument) {
 							else
 							{
 								HAL_UART_Transmit_IT(USART2_getHandle(), "SD demo success\r", 16);
-								osDelay(100);
+							    osDelay(100);
+
 								/* Success of the demo: no error occurrence */
-								;
+								bytesread = 0;
 							}
 						}
 					}
+				}
 			}
 		}
-	  }
+	}
+
+//	vTaskDelete(xTaskGetCurrentTaskHandle());
+	while(1){
+		HAL_UART_Transmit_IT(USART2_getHandle(), "waiting in the loop\r", 21);
+		osDelay(100);
 	}
 
 	while(1){
@@ -209,62 +221,75 @@ osThreadId buttonReadTaskHandle;
 GPIO_PinState button1_state, button2_state;
 void buttonReadTask(void const * argument) {
 
-
-
-
 	while(1) {
 		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_SET &&
-				button1_state == GPIO_PIN_RESET) {
+			button1_state == GPIO_PIN_RESET) {
 			button1_state = GPIO_PIN_SET;
-			HAL_UART_Transmit_IT(USART2_getHandle(), "Button1 released\r", 18);
+			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button1 released\r", 18);
 		};
 		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_RESET &&
-				button1_state == GPIO_PIN_SET) {
+					button1_state == GPIO_PIN_SET) {
 			button1_state = GPIO_PIN_RESET;
-			HAL_UART_Transmit_IT(USART2_getHandle(), "Button1 pressed\r", 17);
+			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button1 pressed\r", 17);
 		};
 
 
 
 		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_SET &&
-				button2_state == GPIO_PIN_RESET) {
+			button2_state == GPIO_PIN_RESET) {
 			button2_state = GPIO_PIN_SET;
-			HAL_UART_Transmit_IT(USART2_getHandle(), "Button2 released\r", 18);
+			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 released\r", 18);
 		};
 		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_RESET &&
-				button2_state == GPIO_PIN_SET) {
+					button2_state == GPIO_PIN_SET) {
 			button2_state = GPIO_PIN_RESET;
-			HAL_UART_Transmit_IT(USART2_getHandle(), "Button2 pressed\r", 17);
+			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 pressed\r", 17);
 		};
-		osDelay(100);
+		WWDG_Refresh();
+
+		osDelay(10);
 
 	}
+
 
 }
 uint8_t uartReadBuffer[100];
 uint8_t puartReadBuffer=0;
 uint8_t lineEndReceived=0;
 void processMsg( void ) {
-	int i;
-	HAL_UART_Transmit_IT(USART2_getHandle(), "Command received: ", 18);
-	osDelay(100);
-	HAL_UART_Transmit_IT(USART2_getHandle(), uartReadBuffer, puartReadBuffer);
-	osDelay(100);
-	for(i=0;i<puartReadBuffer;i++){
-		uartReadBuffer[i]=0;
-	}
-	puartReadBuffer=0;
+       int i;
+       HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Command received: ", 18);
+       osDelay(100);
+       HAL_UART_Transmit_IT(USART2_getHandle(), uartReadBuffer, puartReadBuffer);
+       osDelay(100);
+       for(i=0;i<puartReadBuffer;i++){
+               uartReadBuffer[i]=0;
+       }
+       puartReadBuffer=0;
 }
 void notifyReadTask(char data_in) {
-	uartReadBuffer[puartReadBuffer] = data_in;
-	puartReadBuffer++;
-	if(data_in == '\n' || data_in == '\r') {
-		lineEndReceived = 1;
-	}
+       uartReadBuffer[puartReadBuffer] = data_in;
+       puartReadBuffer++;
+       if(data_in == '\n' || data_in == '\r') {
+               lineEndReceived = 1;
+       }
 }
 osThreadId uartReadTaskHandle;
 
 void uartReadTask(void const * argument) {
+
+       HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Nucleo alive!\r", 14);
+       while(1) {
+               if(lineEndReceived) {
+                       processMsg();
+                       lineEndReceived = 0;
+               }
+               osDelay(100);
+       }
+
+}
+ /* USER CODE END 0 */
+extern uint8_t uartReadByte;
 
 	HAL_UART_Transmit_IT(USART2_getHandle(), "Nucleo alive!\r", 14);
 	while(1) {
@@ -303,15 +328,15 @@ int main(void)
   MX_CRC_Init();
 //  MX_TIM7_Init();
   MX_SDIO_SD_Init();
-
+  /* Call init function for freertos objects (in freertos.c) */
+    MX_FREERTOS_Init();
   /* USER CODE BEGIN 2 */
+
+
 
   /* USER CODE END 2 */
 
-  /* Call init function for freertos objects (in freertos.c) */
-  MX_FREERTOS_Init();
-
-  osThreadDef(debug, debugTask, osPriorityNormal, 0, 128);
+  osThreadDef(debug, debugTask, osPriorityNormal, 0, 1280);
   debugTaskHandle = osThreadCreate(osThread(debug), NULL);
 
   osThreadDef(button, buttonReadTask, osPriorityNormal, 0, 128);
@@ -417,6 +442,7 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+
 /* USER CODE END 4 */
 
 /**
@@ -451,6 +477,8 @@ void Error_Handler(void)
   /* User can add his own implementation to report the HAL error return state */
   while(1) 
   {
+	  HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Error\r", 6);
+	  osDelay(100);
   }
   /* USER CODE END Error_Handler */ 
 }
