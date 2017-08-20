@@ -204,10 +204,10 @@ void debugTask(void const * argument) {
 			}
 		}
 	}
-
+//	TaskStatus_t xTaskStatus;
+//	vTaskGetInfo(xTaskGetCurrentTaskHandle(), &xTaskStatus, 1, 0 );
 //	vTaskDelete(xTaskGetCurrentTaskHandle());
 	while(1){
-		HAL_UART_Transmit_IT(USART2_getHandle(), "waiting in the loop\r", 21);
 		osDelay(100);
 	}
 
@@ -262,6 +262,44 @@ void processMsg( void ) {
        osDelay(100);
        HAL_UART_Transmit_IT(USART2_getHandle(), uartReadBuffer, puartReadBuffer);
        osDelay(100);
+
+       	if(f_open(&MyFile, "cmd_log.TXT", FA_OPEN_ALWAYS | FA_WRITE) != FR_OK)
+		{
+			 HAL_UART_Transmit_IT(USART2_getHandle(), "fopen not OK\r", 13);
+				osDelay(100);
+			/* 'STM32.TXT' file Open for write Error */
+			Error_Handler();
+		}
+		else
+		{
+			 f_lseek(&MyFile, f_size(&MyFile));
+			 HAL_UART_Transmit_IT(USART2_getHandle(), "fopen OK\r", 9);
+			 osDelay(100);
+
+			 /*##-5- Write data to the text file ################################*/
+			 res = f_write(&MyFile, uartReadBuffer, puartReadBuffer, (void *)&byteswritten);
+
+			 if((byteswritten == 0) || (res != FR_OK))
+			{
+				 HAL_UART_Transmit_IT(USART2_getHandle(), "fwrite not OK\r", 14);
+					osDelay(100);
+
+				/* 'STM32.TXT' file Write or EOF Error */
+				Error_Handler();
+			}
+			else
+			{
+				HAL_UART_Transmit_IT(USART2_getHandle(), "fwrite OK\r", 10);
+				osDelay(100);
+				/*##-6- Close the open text file #################################*/
+				f_close(&MyFile);
+				   HAL_UART_Transmit_IT(USART2_getHandle(), "File closed, read back!\r", 24);
+				   osDelay(100);
+			}
+		}
+
+
+
        for(i=0;i<puartReadBuffer;i++){
                uartReadBuffer[i]=0;
        }
@@ -289,19 +327,6 @@ void uartReadTask(void const * argument) {
 
 }
  /* USER CODE END 0 */
-extern uint8_t uartReadByte;
-
-	HAL_UART_Transmit_IT(USART2_getHandle(), "Nucleo alive!\r", 14);
-	while(1) {
-		if(lineEndReceived) {
-			processMsg();
-			lineEndReceived = 0;
-		}
-		osDelay(100);
-	}
-
-}
-/* USER CODE END 0 */
 extern uint8_t uartReadByte;
 int main(void)
 {

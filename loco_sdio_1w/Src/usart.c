@@ -141,15 +141,6 @@ void HAL_UART_RxCpltCallback (UART_HandleTypeDef *huart) {
        HAL_UART_Receive_IT(USART2_getHandle(), &uartReadByte, 1);
 }
 
-UART_HandleTypeDef* USART2_getHandle( void ) {
-	return &huart2;
-}
-
-uint8_t uartReadByte;
-void HAL_UART_RxCpltCallback (UART_HandleTypeDef *huart) {
-	notifyReadTask(uartReadByte);
-	HAL_UART_Receive_IT(USART2_getHandle(), &uartReadByte, 1);
-}
 /* USER CODE END 1 */
 
 /**
