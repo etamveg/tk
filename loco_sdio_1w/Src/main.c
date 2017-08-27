@@ -204,16 +204,11 @@ void debugTask(void const * argument) {
 			}
 		}
 	}
-//	TaskStatus_t xTaskStatus;
-//	vTaskGetInfo(xTaskGetCurrentTaskHandle(), &xTaskStatus, 1, 0 );
-//	vTaskDelete(xTaskGetCurrentTaskHandle());
+
 	while(1){
 		osDelay(100);
 	}
 
-	while(1){
-		osDelay(1);
-	}
 }
 
 osThreadId buttonReadTaskHandle;
@@ -253,6 +248,7 @@ void buttonReadTask(void const * argument) {
 
 
 }
+
 uint8_t uartReadBuffer[100];
 uint8_t puartReadBuffer=0;
 uint8_t lineEndReceived=0;
@@ -326,6 +322,127 @@ void uartReadTask(void const * argument) {
        }
 
 }
+
+#define DISPLAY_SELECTED 1
+#define DISPLAY_NOT_SELECTED 0
+
+#define DISPLAY_COMMAND 0
+#define DISPLAY_DATA 1
+
+uint8_t displayData[256*4];
+uint8_t displayGrayscale = 0xf;
+
+void writeDataToDisplay(void){
+	int i, j, data=0x10, dir=1;
+	for(j=0;j<256*32;j+=2){//lines
+		data = 0;
+		data |= (displayData[j/8] & (1<<(j%8))) ? displayGrayscale : 0;
+		data |= (displayData[(j+1)/8] & (1<<((j+1)%8))) ? (displayGrayscale<<4) : 0;
+
+		writeDisplayCmd(data);
+
+	}
+}
+
+void setPixel(uint8_t x, uint8_t y) {
+	uint32_t pos;
+	if(x>=256 || y>=32) {
+		return;
+	}
+	pos = x+y*256;
+	displayData[pos/8] |= (1 << (pos%8));
+}
+void writeDisplayCmd(uint8_t cmd){
+	HAL_SPI_SS(DISPLAY_SELECTED);
+	//osDelay(1);
+	HAL_SPI_Transmit(&hspi1, &cmd, 1, 0);
+	//osDelay(1);
+	//HAL_SPI_SS(DISPLAY_NOT_SELECTED);
+}
+osThreadId displayTaskHandle;
+
+void displayTask(void const * argument) {
+	HAL_Display_RESET(0);
+	osDelay(1);
+	HAL_Display_CorD(DISPLAY_COMMAND);
+	osDelay(1);
+	writeDisplayCmd(0xfd);
+	writeDisplayCmd(0x12);
+	writeDisplayCmd(0xae);
+	writeDisplayCmd(0x15);
+	writeDisplayCmd(0x00);
+	writeDisplayCmd(0x7f);
+	writeDisplayCmd(0x75);
+	writeDisplayCmd(0x00);
+	writeDisplayCmd(0x1f);
+	writeDisplayCmd(0x81);
+	writeDisplayCmd(0x27);
+	writeDisplayCmd(0x87);
+	writeDisplayCmd(0xa0);
+	writeDisplayCmd(0x07);
+	writeDisplayCmd(0xa1);
+	writeDisplayCmd(0x00);
+	writeDisplayCmd(0xa2);
+	writeDisplayCmd(0x00);
+	writeDisplayCmd(0xa8);
+	writeDisplayCmd(0x1f);
+	writeDisplayCmd(0xb1);
+	writeDisplayCmd(0x71);
+	writeDisplayCmd(0xb3);
+	writeDisplayCmd(0xf0);
+	writeDisplayCmd(0xb7);
+	writeDisplayCmd(0xbb);
+	writeDisplayCmd(0x35);
+	writeDisplayCmd(0xff);
+	writeDisplayCmd(0xbc);
+	writeDisplayCmd(0x1f);
+	writeDisplayCmd(0xbe);
+	writeDisplayCmd(0x0f);
+	writeDisplayCmd(0xaf);
+
+	//writeDisplayCmd(0xa6);
+	HAL_Display_CorD(DISPLAY_DATA);
+	int x=0,y=0;
+	int xdir=0, ydir=0;
+	while(1){
+		setPixel(x,y);
+		writeDataToDisplay();
+		osDelay(3);
+		if(xdir == 0){
+			x++;
+		} else {
+			x--;
+		}
+
+		if(x%3 == 2){
+			if(ydir == 0){
+				y++;
+			} else {
+				y--;
+			}
+		}
+
+		if(x>=255) {
+			xdir = 1;
+		} else if (x<=0){
+			xdir = 0;
+		}
+		if(y>=31) {
+			ydir = 1;
+		} else if (y<=0) {
+			ydir = 0;
+		}
+	}
+	HAL_Display_CorD(DISPLAY_DATA);
+	writeDisplayCmd(0x35);
+	writeDisplayCmd(0xff);
+	writeDisplayCmd(0xbc);
+	writeDisplayCmd(0x1f);
+	writeDisplayCmd(0xbe);
+	writeDisplayCmd(0x0f);
+	writeDisplayCmd(0xaf);
+
+}
  /* USER CODE END 0 */
 extern uint8_t uartReadByte;
 int main(void)
@@ -349,7 +466,7 @@ int main(void)
   MX_USART2_UART_Init();
   HAL_UART_Receive_IT(USART2_getHandle(), &uartReadByte, 1);
   //MX_WWDG_Init();
-//  MX_SPI1_Init();
+  MX_SPI1_Init();
   MX_CRC_Init();
 //  MX_TIM7_Init();
   MX_SDIO_SD_Init();
@@ -369,6 +486,11 @@ int main(void)
 
   osThreadDef(uart, uartReadTask, osPriorityNormal, 0, 128);
   uartReadTaskHandle = osThreadCreate(osThread(uart), NULL);
+
+
+  osThreadDef(display, displayTask, osPriorityNormal, 0, 128);
+  displayTaskHandle = osThreadCreate(osThread(display), NULL);
+
   /* Start scheduler */
   osKernelStart();
   

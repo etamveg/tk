@@ -69,6 +69,10 @@
 #define button_2_GPIO_Port GPIOC
 #define SPI_SS_Pin GPIO_PIN_5
 #define SPI_SS_GPIO_Port GPIOB
+#define DISP_RESET_Pin GPIO_PIN_7
+#define DISP_RESET_GPIO_Port GPIOC
+#define DISP_CMD_Pin GPIO_PIN_6
+#define DISP_CMD_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 void notifyReadTask(char data_in);

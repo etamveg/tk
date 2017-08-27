@@ -67,7 +67,9 @@ extern void Error_Handler(void);
 void MX_SPI1_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+void HAL_SPI_SS(uint8_t isActive);
+void HAL_Display_CorD(uint8_t select);
+void HAL_Display_RESET(uint8_t enabled);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

@@ -132,6 +132,30 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 
 /* USER CODE BEGIN 1 */
 
+void HAL_SPI_SS(uint8_t isActive) {
+	if(isActive) {
+		HAL_GPIO_WritePin(SPI_SS_GPIO_Port, SPI_SS_Pin, GPIO_PIN_RESET);
+	} else {
+		HAL_GPIO_WritePin(SPI_SS_GPIO_Port, SPI_SS_Pin, GPIO_PIN_SET);
+	}
+}
+
+void HAL_Display_RESET(uint8_t enabled) {
+	if(enabled) {
+		HAL_GPIO_WritePin(DISP_RESET_GPIO_Port, DISP_RESET_Pin , GPIO_PIN_RESET);
+	} else {
+		HAL_GPIO_WritePin(DISP_RESET_GPIO_Port, DISP_RESET_Pin , GPIO_PIN_SET);
+	}
+}
+
+void HAL_Display_CorD(uint8_t select) { // data=1, command=0
+	if(select) {
+		HAL_GPIO_WritePin(DISP_CMD_GPIO_Port, DISP_CMD_Pin , GPIO_PIN_SET);
+	} else {
+		HAL_GPIO_WritePin(DISP_CMD_GPIO_Port, DISP_CMD_Pin , GPIO_PIN_RESET);
+	}
+}
+
 /* USER CODE END 1 */
 
 /**
