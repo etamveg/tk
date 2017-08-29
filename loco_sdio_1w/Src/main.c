@@ -53,7 +53,7 @@
 #include "usb_device.h"
 #include "wwdg.h"
 #include "gpio.h"
-
+#include "fonts.h"
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -72,7 +72,7 @@ void MX_FREERTOS_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-
+void printCharacter(uint8_t font, uint8_t base_x, uint8_t base_y, uint8_t char_offset);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -90,7 +90,7 @@ void debugTask(void const * argument) {
 
 	osDelay(100);
 	/*##-2- Register the file system object to the FatFs module ##############*/
-	if(f_mount(&SDDISKFatFs, /*"", 1*/(TCHAR const*)SD_Path, 0) != FR_OK)
+	if(f_mount(&SDDISKFatFs, "", 1/*(TCHAR const*)SD_Path, 0*/) != FR_OK)
 	{
 		HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"SD mount not OK\r", 16);
 		osDelay(100);
@@ -215,11 +215,13 @@ osThreadId buttonReadTaskHandle;
 
 GPIO_PinState button1_state, button2_state;
 void buttonReadTask(void const * argument) {
-
+	uint8_t char_offset = 11;
 	while(1) {
 		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_SET &&
 			button1_state == GPIO_PIN_RESET) {
 			button1_state = GPIO_PIN_SET;
+			char_offset++;
+			printCharacter(8, 126, 12, char_offset);
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button1 released\r", 18);
 		};
 		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_RESET &&
@@ -233,6 +235,8 @@ void buttonReadTask(void const * argument) {
 		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_SET &&
 			button2_state == GPIO_PIN_RESET) {
 			button2_state = GPIO_PIN_SET;
+			char_offset--;
+			printCharacter(8, 126, 12, char_offset);
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 released\r", 18);
 		};
 		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_RESET &&
@@ -342,6 +346,15 @@ void setPixel(uint8_t x, uint8_t y) {
 	pos = x+y*256;
 	displayData[pos/8] |= (1 << (pos%8));
 }
+
+void clearPixel(uint8_t x, uint8_t y) {
+	uint32_t pos;
+	if(x>=256 || y>=32) {
+		return;
+	}
+	pos = x+y*256;
+	displayData[pos/8] &= ~(1 << (pos%8));
+}
 void writeDisplayCmd(uint8_t cmd){
 	HAL_SPI_SS(DISPLAY_SELECTED);
 	//osDelay(1);
@@ -361,6 +374,42 @@ void writeDataToDisplay(void){
 		writeDisplayCmd(data);
 
 	}
+}
+
+void printCharacter(uint8_t font, uint8_t base_x, uint8_t base_y, uint8_t char_offset) {
+	int cy, cx, x_width, y_height;
+
+	switch(font){
+	case 8:
+		x_width = 5;
+		y_height = 8;
+		break;
+	case 12:
+			x_width = 7;
+			y_height = 12;
+			break;
+	case 16:
+			x_width = 11;
+			y_height = 16;
+			break;
+	case 20:
+			x_width = 14;
+			y_height = 20;
+			break;
+	case 24:
+			x_width = 17;
+			y_height = 24;
+			break;
+	}
+		for(cy=0; cy<y_height; cy++){
+			for(cx=0; cx<x_width; cx++){
+				if(Font8.table[8*char_offset+cy] & (0x80>>cx)) {
+					setPixel(base_x+cx,base_y+cy);
+				} else {
+					clearPixel(base_x+cx,base_y+cy);
+				}
+			}
+		}
 }
 osThreadId displayTaskHandle;
 
@@ -405,16 +454,28 @@ void displayTask(void const * argument) {
 
 	//writeDisplayCmd(0xa6);
 	HAL_Display_CorD(DISPLAY_DATA);
-	int x=0,y=0;
-	int xdir=0, ydir=0;
+	int x=0,y=0, x1=100, y1=10;
+	int xdir=0, ydir=0, x1dir=1, y1dir=0;
+
+
+
+
 	while(1){
 		setPixel(x,y);
+		setPixel(x1,y1);
 		writeDataToDisplay();
-		osDelay(3);
+		osDelay(20);
+		clearPixel( x, y);
+		clearPixel( x1, y1);
 		if(xdir == 0){
 			x++;
 		} else {
 			x--;
+		}
+		if(x1dir == 0){
+			x1++;
+		} else {
+			x1--;
 		}
 
 		if(x%3 == 2){
@@ -422,6 +483,14 @@ void displayTask(void const * argument) {
 				y++;
 			} else {
 				y--;
+			}
+		}
+
+		if(x1%4 == 2){
+			if(y1dir == 0){
+				y1++;
+			} else {
+				y1--;
 			}
 		}
 
@@ -434,6 +503,17 @@ void displayTask(void const * argument) {
 			ydir = 1;
 		} else if (y<=0) {
 			ydir = 0;
+		}
+
+		if(x1>=255) {
+			x1dir = 1;
+		} else if (x1<=0){
+			x1dir = 0;
+		}
+		if(y1>=31) {
+			y1dir = 1;
+		} else if (y1<=0) {
+			y1dir = 0;
 		}
 	}
 	HAL_Display_CorD(DISPLAY_DATA);
@@ -492,7 +572,7 @@ int main(void)
 
 
   osThreadDef(display, displayTask, osPriorityNormal, 0, 128);
-  //displayTaskHandle = osThreadCreate(osThread(display), NULL);
+  displayTaskHandle = osThreadCreate(osThread(display), NULL);
 
   /* Start scheduler */
   osKernelStart();
