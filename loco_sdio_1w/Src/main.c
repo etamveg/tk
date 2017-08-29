@@ -90,7 +90,7 @@ void debugTask(void const * argument) {
 
 	osDelay(100);
 	/*##-2- Register the file system object to the FatFs module ##############*/
-	if(f_mount(&SDDISKFatFs, "", 1/*(TCHAR const*)SD_Path, 0*/) != FR_OK)
+	if(f_mount(&SDDISKFatFs, /*"", 1*/(TCHAR const*)SD_Path, 0) != FR_OK)
 	{
 		HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"SD mount not OK\r", 16);
 		osDelay(100);
@@ -103,7 +103,7 @@ void debugTask(void const * argument) {
         	osDelay(100);
 //		if(f_mkfs((TCHAR const*)SD_Path, 0, 0) != FR_OK)
 //		{
-//			HAL_UART_Transmit_IT(USART2_getHandle(), "Make fs not OK\r", 15);
+//			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Make fs not OK\r", 15);
 //			osDelay(100);
 //			/* FatFs Format Error */
 //			Error_Handler();
@@ -492,7 +492,7 @@ int main(void)
 
 
   osThreadDef(display, displayTask, osPriorityNormal, 0, 128);
-  displayTaskHandle = osThreadCreate(osThread(display), NULL);
+  //displayTaskHandle = osThreadCreate(osThread(display), NULL);
 
   /* Start scheduler */
   osKernelStart();
