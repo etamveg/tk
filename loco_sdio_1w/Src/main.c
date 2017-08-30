@@ -53,7 +53,8 @@
 #include "usb_device.h"
 #include "wwdg.h"
 #include "gpio.h"
-#include "fonts.h"
+#include "display.h"
+
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -72,7 +73,7 @@ void MX_FREERTOS_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void printCharacter(uint8_t font, uint8_t base_x, uint8_t base_y, uint8_t char_offset);
+
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -86,6 +87,8 @@ uint32_t byteswritten, bytesread;                     /* File write/read counts 
 uint8_t wtext[] = "This is STM32 working with FatFs"; /* File write buffer */
 uint8_t rtext[100];
 
+
+TaskStatus_t task_3;
 void debugTask(void const * argument) {
 
 	osDelay(100);
@@ -206,13 +209,15 @@ void debugTask(void const * argument) {
 	}
 
 	while(1){
+
+		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_3, 1, eRunning);
 		osDelay(100);
 	}
 
 }
 
 osThreadId buttonReadTaskHandle;
-
+TaskStatus_t task_2;
 GPIO_PinState button1_state, button2_state;
 void buttonReadTask(void const * argument) {
 	uint8_t char_offset = 11;
@@ -221,7 +226,7 @@ void buttonReadTask(void const * argument) {
 			button1_state == GPIO_PIN_RESET) {
 			button1_state = GPIO_PIN_SET;
 			char_offset++;
-			printCharacter(8, 126, 12, char_offset);
+			dsp_printLineToMemory(displayData, 8, 0, 0, "Hello!", 6);
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button1 released\r", 18);
 		};
 		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_RESET &&
@@ -236,7 +241,7 @@ void buttonReadTask(void const * argument) {
 			button2_state == GPIO_PIN_RESET) {
 			button2_state = GPIO_PIN_SET;
 			char_offset--;
-			printCharacter(8, 126, 12, char_offset);
+			dsp_printLineToMemory(displayData, 8, 0, 0, "TAMAS kiirja!", 13);
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 released\r", 18);
 		};
 		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_RESET &&
@@ -246,6 +251,7 @@ void buttonReadTask(void const * argument) {
 		};
 		WWDG_Refresh();
 
+		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_2, 1, eRunning);
 		osDelay(10);
 
 	}
@@ -293,7 +299,7 @@ void processMsg( void ) {
 				osDelay(100);
 				/*##-6- Close the open text file #################################*/
 				f_close(&MyFile);
-				   HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"File closed, read back!\r", 24);
+				   HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"File closed!\r", 13);
 				   osDelay(100);
 			}
 		}
@@ -313,219 +319,33 @@ void notifyReadTask(char data_in) {
        }
 }
 osThreadId uartReadTaskHandle;
-
+TaskStatus_t task_1;
 void uartReadTask(void const * argument) {
 
-       HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Nucleo alive!\r", 14);
+		HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Nucleo alive!\r", 14);
+		osDelay(1000);
+		HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"wait!\r", 6);
+		osDelay(10000);
+		HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Nucleo alive 2!\r", 16);
+		osDelay(10000);
+
        while(1) {
                if(lineEndReceived) {
                        processMsg();
                        lineEndReceived = 0;
                }
+               vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_1, 1, eRunning);
                osDelay(100);
        }
 
 }
 
-#define DISPLAY_SELECTED 1
-#define DISPLAY_NOT_SELECTED 0
-
-#define DISPLAY_COMMAND 0
-#define DISPLAY_DATA 1
-
-uint8_t displayData[256*4];
-uint8_t displayGrayscale = 0xf;
 
 
 
-void setPixel(uint8_t x, uint8_t y) {
-	uint32_t pos;
-	if(x>=256 || y>=32) {
-		return;
-	}
-	pos = x+y*256;
-	displayData[pos/8] |= (1 << (pos%8));
-}
 
-void clearPixel(uint8_t x, uint8_t y) {
-	uint32_t pos;
-	if(x>=256 || y>=32) {
-		return;
-	}
-	pos = x+y*256;
-	displayData[pos/8] &= ~(1 << (pos%8));
-}
-void writeDisplayCmd(uint8_t cmd){
-	HAL_SPI_SS(DISPLAY_SELECTED);
-	//osDelay(1);
-	HAL_SPI_Transmit(&hspi1, &cmd, 1, 0);
-	//osDelay(1);
-	//HAL_SPI_SS(DISPLAY_NOT_SELECTED);
-}
-
-void writeDataToDisplay(void){
-	int  j;
-	uint8_t data;
-	for(j=0;j<256*32;j+=2){//lines
-		data = 0;
-		data |= (displayData[j/8] & (1<<(j%8))) ? displayGrayscale : 0;
-		data |= (displayData[(j+1)/8] & (1<<((j+1)%8))) ? (displayGrayscale<<4) : 0;
-
-		writeDisplayCmd(data);
-
-	}
-}
-
-void printCharacter(uint8_t font, uint8_t base_x, uint8_t base_y, uint8_t char_offset) {
-	int cy, cx, x_width, y_height;
-
-	switch(font){
-	case 8:
-		x_width = 5;
-		y_height = 8;
-		break;
-	case 12:
-			x_width = 7;
-			y_height = 12;
-			break;
-	case 16:
-			x_width = 11;
-			y_height = 16;
-			break;
-	case 20:
-			x_width = 14;
-			y_height = 20;
-			break;
-	case 24:
-			x_width = 17;
-			y_height = 24;
-			break;
-	}
-		for(cy=0; cy<y_height; cy++){
-			for(cx=0; cx<x_width; cx++){
-				if(Font8.table[8*char_offset+cy] & (0x80>>cx)) {
-					setPixel(base_x+cx,base_y+cy);
-				} else {
-					clearPixel(base_x+cx,base_y+cy);
-				}
-			}
-		}
-}
 osThreadId displayTaskHandle;
 
-void displayTask(void const * argument) {
-	HAL_Display_RESET(0);
-	osDelay(1);
-	HAL_Display_CorD(DISPLAY_COMMAND);
-	osDelay(1);
-	writeDisplayCmd(0xfd);
-	writeDisplayCmd(0x12);
-	writeDisplayCmd(0xae);
-	writeDisplayCmd(0x15);
-	writeDisplayCmd(0x00);
-	writeDisplayCmd(0x7f);
-	writeDisplayCmd(0x75);
-	writeDisplayCmd(0x00);
-	writeDisplayCmd(0x1f);
-	writeDisplayCmd(0x81);
-	writeDisplayCmd(0x27);
-	writeDisplayCmd(0x87);
-	writeDisplayCmd(0xa0);
-	writeDisplayCmd(0x07);
-	writeDisplayCmd(0xa1);
-	writeDisplayCmd(0x00);
-	writeDisplayCmd(0xa2);
-	writeDisplayCmd(0x00);
-	writeDisplayCmd(0xa8);
-	writeDisplayCmd(0x1f);
-	writeDisplayCmd(0xb1);
-	writeDisplayCmd(0x71);
-	writeDisplayCmd(0xb3);
-	writeDisplayCmd(0xf0);
-	writeDisplayCmd(0xb7);
-	writeDisplayCmd(0xbb);
-	writeDisplayCmd(0x35);
-	writeDisplayCmd(0xff);
-	writeDisplayCmd(0xbc);
-	writeDisplayCmd(0x1f);
-	writeDisplayCmd(0xbe);
-	writeDisplayCmd(0x0f);
-	writeDisplayCmd(0xaf);
-
-	//writeDisplayCmd(0xa6);
-	HAL_Display_CorD(DISPLAY_DATA);
-	int x=0,y=0, x1=100, y1=10;
-	int xdir=0, ydir=0, x1dir=1, y1dir=0;
-
-
-
-
-	while(1){
-		setPixel(x,y);
-		setPixel(x1,y1);
-		writeDataToDisplay();
-		osDelay(20);
-		clearPixel( x, y);
-		clearPixel( x1, y1);
-		if(xdir == 0){
-			x++;
-		} else {
-			x--;
-		}
-		if(x1dir == 0){
-			x1++;
-		} else {
-			x1--;
-		}
-
-		if(x%3 == 2){
-			if(ydir == 0){
-				y++;
-			} else {
-				y--;
-			}
-		}
-
-		if(x1%4 == 2){
-			if(y1dir == 0){
-				y1++;
-			} else {
-				y1--;
-			}
-		}
-
-		if(x>=255) {
-			xdir = 1;
-		} else if (x<=0){
-			xdir = 0;
-		}
-		if(y>=31) {
-			ydir = 1;
-		} else if (y<=0) {
-			ydir = 0;
-		}
-
-		if(x1>=255) {
-			x1dir = 1;
-		} else if (x1<=0){
-			x1dir = 0;
-		}
-		if(y1>=31) {
-			y1dir = 1;
-		} else if (y1<=0) {
-			y1dir = 0;
-		}
-	}
-	HAL_Display_CorD(DISPLAY_DATA);
-	writeDisplayCmd(0x35);
-	writeDisplayCmd(0xff);
-	writeDisplayCmd(0xbc);
-	writeDisplayCmd(0x1f);
-	writeDisplayCmd(0xbe);
-	writeDisplayCmd(0x0f);
-	writeDisplayCmd(0xaf);
-
-}
  /* USER CODE END 0 */
 extern uint8_t uartReadByte;
 int main(void)
@@ -564,14 +384,14 @@ int main(void)
   osThreadDef(debug, debugTask, osPriorityNormal, 0, 400);
   debugTaskHandle = osThreadCreate(osThread(debug), NULL);
 
-  osThreadDef(button, buttonReadTask, osPriorityNormal, 0, 128);
+  osThreadDef(button, buttonReadTask, osPriorityNormal, 0, 200);
   buttonReadTaskHandle = osThreadCreate(osThread(button), NULL);
 
-  osThreadDef(uart, uartReadTask, osPriorityNormal, 0, 128);
+  osThreadDef(uart, uartReadTask, osPriorityNormal, 0, 300);
   uartReadTaskHandle = osThreadCreate(osThread(uart), NULL);
 
 
-  osThreadDef(display, displayTask, osPriorityNormal, 0, 128);
+  osThreadDef(display, displayTask, osPriorityNormal, 0, 200);
   displayTaskHandle = osThreadCreate(osThread(display), NULL);
 
   /* Start scheduler */
@@ -705,7 +525,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
-  while(1) 
+  //while(1)
   {
 	  HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Error\r", 6);
 	  osDelay(10000);
