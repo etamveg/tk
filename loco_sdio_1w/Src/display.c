@@ -20,7 +20,7 @@ void dsp_clearPixelFromMemory(uint8_t *data, uint8_t x, uint8_t y);
 void dsp_writeDataToDisplay(uint8_t *data, uint8_t grayScale);
 void dsp_printCharacterToMemory(uint8_t *data, uint8_t font, uint8_t base_x, uint8_t base_y, uint8_t char_offset);
 void dsp_displayInitWithCommands(void);
-uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character, uint8_t fontByteWidth);
+uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character);
 
 void dsp_setPixelToMemory(uint8_t *data, uint8_t x, uint8_t y) {
 	uint32_t pos;
@@ -104,15 +104,15 @@ void dsp_printLineToMemory(uint8_t *data, uint8_t font, uint8_t base_x, uint8_t 
 	sFONT *currentFont;
 	currentFont = dsp_getFontDescriptor(font);
 	for(i=0;i<string_len;i++){
-		dsp_printCharacterToMemory(data, font, base_x+i*currentFont->Width, base_y, dsp_calculateCharTableOffsetOfChar(string[i], 1));
+		dsp_printCharacterToMemory(data, font, base_x+i*currentFont->Width, base_y, dsp_calculateCharTableOffsetOfChar(string[i]));
 	}
 }
 
-uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character, uint8_t fontByteWidth) {
+uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character) {
 	int32_t offset = character-0x20;
 	if(offset<0) return 0;
 	if(offset>0x5e) return 0x5e;
-	return offset*fontByteWidth;
+	return offset;
 }
 
 uint8_t text[] = "Logan Wheat went out on a small boat to check on cattle and ended up capturing one of the most startling photos of flooding from Harvey.\
@@ -290,7 +290,7 @@ void dsp_fillTextBoxWithText(dsp_textbox_t *tb) {
 
 			characterBitmap=0;
 
-			p_fontTable = currentFont->Height*dsp_calculateCharTableOffsetOfChar(characterToDisplay, font_byteWidth)+(cy+firstLineYOffset)%currentFont->Height;
+			p_fontTable = currentFont->Height*dsp_calculateCharTableOffsetOfChar(characterToDisplay)*font_byteWidth+font_byteWidth*(cy+firstLineYOffset)%(currentFont->Height*font_byteWidth);
 
 			for(i=0; i<font_byteWidth; i++){
 				characterBitmap = characterBitmap<<8;
