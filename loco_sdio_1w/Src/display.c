@@ -12,6 +12,7 @@
 #include <stdlib.h>
 uint8_t displayData[256*4];
 uint8_t displayGrayscale = 0xf;
+uint8_t displayDataChanged = 0;
 
 dsp_textbox_t g_textbox_list[2];
 
@@ -157,6 +158,8 @@ void dsp_displayInitWithCommands(void){
 TaskStatus_t task_4;
 
 void displayTask(void const * argument) {
+	int i = 0;
+	osDelay(500);
 	dsp_displayInitWithCommands();
 	//dsp_writeDisplayCmd(0xa6);
 	HAL_Display_CorD(DISPLAY_DATA);
@@ -175,8 +178,15 @@ void displayTask(void const * argument) {
 		dsp_txt_printTBToMemory(&(g_textbox_list[0]), displayData);
 		dsp_fillTextBoxWithText(&(g_textbox_list[1]));
 		dsp_txt_printTBToMemory(&(g_textbox_list[1]), displayData);
-		dsp_writeDataToDisplay(displayData, displayGrayscale);
-		osDelay(1);
+
+		if(displayDataChanged || i >= 50){
+			displayDataChanged = 0;
+			i=0;
+			dsp_writeDataToDisplay(displayData, displayGrayscale);
+		}
+
+		osDelay(10);
+		i++;
 
 	}
 
@@ -217,6 +227,7 @@ void dsp_text_setText( dsp_textbox_t *tb, uint8_t *data, uint32_t dataLength) {
 	} else {
 		tb->textData_length = dataLength;
 	}
+	displayDataChanged=1;
 }
 
 void dsp_txt_printTBToMemory(dsp_textbox_t *tb, uint8_t *displayData) {
@@ -325,6 +336,7 @@ void dsp_scrollTexboxRelative(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
 	if((int)tb->charOffset_px + y_px >= 0) {
 		tb->charOffset_px += y_px;
 	}
+	displayDataChanged=1;
 }
 
 void dsp_scrollTexboxAbsolute(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
@@ -334,4 +346,5 @@ void dsp_scrollTexboxAbsolute(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
 	if(y_px >= 0) {
 		tb->charOffset_px = y_px;
 	}
+	displayDataChanged=1;
 }

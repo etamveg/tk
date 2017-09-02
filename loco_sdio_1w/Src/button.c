@@ -15,7 +15,7 @@ button_descriptor_t button1, button2;
 buttonEventHandlers_t buttons[2];
 TaskStatus_t task_2;
 void buttonReadTask(void const * argument) {
-	uint8_t buttonReadPeriod = 10;
+	uint8_t buttonReadPeriod = 50;
 
 	while(1) {
 		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_SET &&
