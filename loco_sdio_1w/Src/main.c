@@ -232,6 +232,16 @@ void buttonReadTask(void const * argument) {
 					button1_state == GPIO_PIN_SET) {
 			button1_state = GPIO_PIN_RESET;
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button1 pressed\r", 17);
+			if(g_textbox_list[0].charFont == 8 ) {
+				g_textbox_list[0].charFont = 12;
+			} else if(g_textbox_list[0].charFont == 12 ) {
+				g_textbox_list[0].charFont = 16;
+			} else if(g_textbox_list[0].charFont == 16 ) {
+				g_textbox_list[0].charFont = 20;
+			} else if(g_textbox_list[0].charFont == 20 ) {
+				g_textbox_list[0].charFont = 24;
+			}
+
 		};
 
 
@@ -246,6 +256,18 @@ void buttonReadTask(void const * argument) {
 					button2_state == GPIO_PIN_SET) {
 			button2_state = GPIO_PIN_RESET;
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 pressed\r", 17);
+			if(g_textbox_list[0].charFont == 12 ) {
+				g_textbox_list[0].charFont = 8;
+			}
+			if(g_textbox_list[0].charFont == 16 ) {
+				g_textbox_list[0].charFont = 12;
+			}
+			if(g_textbox_list[0].charFont == 20 ) {
+				g_textbox_list[0].charFont = 16;
+			}
+			if(g_textbox_list[0].charFont == 24 ) {
+				g_textbox_list[0].charFont = 20;
+			}
 		};
 
 		if(button1_state == GPIO_PIN_RESET) { /*button pressed*/

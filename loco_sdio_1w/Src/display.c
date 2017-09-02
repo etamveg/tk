@@ -20,7 +20,7 @@ void dsp_clearPixelFromMemory(uint8_t *data, uint8_t x, uint8_t y);
 void dsp_writeDataToDisplay(uint8_t *data, uint8_t grayScale);
 void dsp_printCharacterToMemory(uint8_t *data, uint8_t font, uint8_t base_x, uint8_t base_y, uint8_t char_offset);
 void dsp_displayInitWithCommands(void);
-uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character);
+uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character, uint8_t fontByteWidth);
 
 void dsp_setPixelToMemory(uint8_t *data, uint8_t x, uint8_t y) {
 	uint32_t pos;
@@ -104,15 +104,15 @@ void dsp_printLineToMemory(uint8_t *data, uint8_t font, uint8_t base_x, uint8_t 
 	sFONT *currentFont;
 	currentFont = dsp_getFontDescriptor(font);
 	for(i=0;i<string_len;i++){
-		dsp_printCharacterToMemory(data, font, base_x+i*currentFont->Width, base_y, dsp_calculateCharTableOffsetOfChar(string[i]));
+		dsp_printCharacterToMemory(data, font, base_x+i*currentFont->Width, base_y, dsp_calculateCharTableOffsetOfChar(string[i], 1));
 	}
 }
 
-uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character) {
+uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character, uint8_t fontByteWidth) {
 	int32_t offset = character-0x20;
 	if(offset<0) return 0;
 	if(offset>0x5e) return 0x5e;
-	return offset;
+	return offset*fontByteWidth;
 }
 
 uint8_t text[] = "Logan Wheat went out on a small boat to check on cattle and ended up capturing one of the most startling photos of flooding from Harvey.\
@@ -171,7 +171,7 @@ void displayTask(void const * argument) {
 
 	dsp_printLineToMemory(displayData, 8, 0, 0, (uint8_t*)"Hello!", 6);
 
-	dsp_text_InitTextbox( &(g_textbox_list[0]), 16, 150, 8, 10, 8, 5 );
+	dsp_text_InitTextbox( &(g_textbox_list[0]), 24, 150, 8, 8, 8, 5 );
 	dsp_text_setText( &(g_textbox_list[0]), text, 0);
 
 
@@ -252,18 +252,52 @@ void dsp_txt_printTBToMemory(dsp_textbox_t *tb, uint8_t *displayData) {
 }
 
 void dsp_fillTextBoxWithText(dsp_textbox_t *tb) {
-	int cy, cx, p_startChr, firstLineYOffset, firstCharXOffset, characterToDisplay, charPerLine;
+	int cy, cx, p_startChr, firstLineYOffset, firstCharXOffset, pcharacterToDisplay, charPerLine;
+	uint8_t characterToDisplay;
+	uint8_t font_byteWidth;
+	uint8_t i;
+	uint32_t characterBitmap, p_fontTable, bitmapCheckPattern;
 	sFONT *currentFont;
 
 	currentFont = dsp_getFontDescriptor(tb->charFont);
+
+	if( currentFont->Width <= 8 ) {
+		font_byteWidth = 1;
+	} else if( currentFont->Width <= 16 && currentFont->Width > 8  ) {
+		font_byteWidth = 2;
+	} else if ( currentFont->Width <= 24 && currentFont->Width > 16 ) {
+		font_byteWidth = 3;
+	}
+
+	bitmapCheckPattern = 1<<(font_byteWidth*8-1);
+
 	charPerLine = tb->width_px/currentFont->Width;
 	p_startChr = tb->lineOffset_px/currentFont->Height * charPerLine + tb->charOffset_px/currentFont->Width;
 	firstLineYOffset = tb->lineOffset_px%currentFont->Height;
 	firstCharXOffset = tb->charOffset_px%currentFont->Width;
+
+
 	for(cy=0; cy<tb->height_px ; cy++){
 		for(cx=0; cx<tb->width_px; cx++){
-			characterToDisplay = p_startChr + (cx+firstCharXOffset)/currentFont->Width + (cy+firstLineYOffset)/currentFont->Height*charPerLine;
-			if( currentFont->table[ currentFont->Height*dsp_calculateCharTableOffsetOfChar(tb->textData_char[characterToDisplay])+(cy+firstLineYOffset)%currentFont->Height] & (0x80>>(cx+firstCharXOffset)%currentFont->Width)) {
+
+
+			pcharacterToDisplay = p_startChr + (cx+firstCharXOffset)/currentFont->Width + (cy+firstLineYOffset)/currentFont->Height*charPerLine;
+			if(pcharacterToDisplay < tb->textData_length){
+				characterToDisplay = tb->textData_char[pcharacterToDisplay];
+			} else {
+				characterToDisplay = ' ';
+			}
+
+			characterBitmap=0;
+
+			p_fontTable = currentFont->Height*dsp_calculateCharTableOffsetOfChar(characterToDisplay, font_byteWidth)+(cy+firstLineYOffset)%currentFont->Height;
+
+			for(i=0; i<font_byteWidth; i++){
+				characterBitmap = characterBitmap<<8;
+				characterBitmap |= currentFont->table[p_fontTable+i];
+			}
+
+			if( characterBitmap & (bitmapCheckPattern>>(cx+firstCharXOffset)%currentFont->Width)) {
 				dsp_setPixelInTextbox(tb,cx,cy);
 			} else {
 				dsp_clearPixelInTextbox(tb,cx,cy);
