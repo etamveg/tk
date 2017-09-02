@@ -54,7 +54,7 @@
 #include "wwdg.h"
 #include "gpio.h"
 #include "display.h"
-
+#include "button.h"
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -63,7 +63,17 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+uint8_t text_1[] = "Logan Wheat went out on a small boat to check on cattle and ended up capturing one of the most startling photos of flooding from Harvey.\
+		What used to be Interstate 10, south of Beaumont, Texas, looked like an ocean, with waves lapping.\
+		This split screen shows what that stretch of I-10 looked like before Harvey hit -- and what it looks like now.\
+		The wind-churned waves almost tipped Wheat's boat over, Wheat told CNN.\
+		The boat was being thrown around a lot, he said.\
+		The waves, he added, were anywhere from 3 to 4 feet.";
+uint8_t text_2[] = "Houston (CNN)Harvey is no longer a hurricane, but life-threatening flooding continued in and around Houston on Sunday night as citizens with boats assisted authorities in search and rescue efforts.\
+		Flooding from Tropical Storm Harvey is overburdening resources in the country's fourth-largest city, prompting authorities to call on volunteers with watercraft for help in rescuing those trapped in homes and buildings.\
+		An immediate respite from Harvey's wrath seems unlikely to come. The National Weather Service calls the flooding and warns things may become more dire if a forecasted record-breaking 50 inches of rain does fall on parts of Texas in coming days. In anticipation of a worsening situation, Dallas is turning its main convention center into a mega-shelter that can host 5,000 evacuees.\
+		The rainfall threatens to exacerbate an already dangerous situation, as Harvey's rains have left many east Texas rivers and bayous swollen to their banks or beyond.";
+uint8_t used_text = 1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,6 +84,30 @@ void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
+void scrollDown(uint32_t duration) {
+	dsp_scrollTexboxRelative(&(g_textbox_list[0]), 0, 1);
+	dsp_scrollTexboxRelative(&(g_textbox_list[1]), 1, 0);
+}
+void scrollUp(uint32_t duration) {
+	dsp_scrollTexboxRelative(&(g_textbox_list[0]), 0, -1);
+	dsp_scrollTexboxRelative(&(g_textbox_list[1]), -1, 0);
+}
+void resetScroll(uint32_t duration) {
+	dsp_scrollTexboxAbsolute(&(g_textbox_list[0]), 0, 0);
+	dsp_scrollTexboxAbsolute(&(g_textbox_list[1]), 0, 0);
+}
+void nextText(uint32_t duration) {
+	if(used_text == 1) {
+		dsp_text_setText( &(g_textbox_list[0]),text_2, 0);
+		dsp_text_setText( &(g_textbox_list[1]),text_2, 0);
+		used_text = 2;
+	} else if (used_text == 2) {
+		dsp_text_setText( &(g_textbox_list[0]),text_1, 0);
+		dsp_text_setText( &(g_textbox_list[1]),text_1, 0);
+		used_text = 1;
+	}
+
+}
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -208,6 +242,8 @@ void debugTask(void const * argument) {
 		}
 	}
 
+
+
 	while(1){
 
 		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_3, 1, eRunning);
@@ -217,75 +253,7 @@ void debugTask(void const * argument) {
 }
 
 osThreadId buttonReadTaskHandle;
-TaskStatus_t task_2;
-GPIO_PinState button1_state, button2_state;
-void buttonReadTask(void const * argument) {
 
-	while(1) {
-		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_SET &&
-			button1_state == GPIO_PIN_RESET) {
-			button1_state = GPIO_PIN_SET;
-			dsp_scrollTexboxRelative(&(g_textbox_list[0]), 0, 1);
-			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button1 released\r", 18);
-		};
-		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_RESET &&
-					button1_state == GPIO_PIN_SET) {
-			button1_state = GPIO_PIN_RESET;
-			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button1 pressed\r", 17);
-			if(g_textbox_list[0].charFont == 8 ) {
-				g_textbox_list[0].charFont = 12;
-			} else if(g_textbox_list[0].charFont == 12 ) {
-				g_textbox_list[0].charFont = 16;
-			} else if(g_textbox_list[0].charFont == 16 ) {
-				g_textbox_list[0].charFont = 20;
-			} else if(g_textbox_list[0].charFont == 20 ) {
-				g_textbox_list[0].charFont = 24;
-			}
-
-		};
-
-
-		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_SET &&
-			button2_state == GPIO_PIN_RESET) {
-			button2_state = GPIO_PIN_SET;
-
-
-			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 released\r", 18);
-		};
-		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_RESET &&
-					button2_state == GPIO_PIN_SET) {
-			button2_state = GPIO_PIN_RESET;
-			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 pressed\r", 17);
-			if(g_textbox_list[0].charFont == 12 ) {
-				g_textbox_list[0].charFont = 8;
-			}
-			if(g_textbox_list[0].charFont == 16 ) {
-				g_textbox_list[0].charFont = 12;
-			}
-			if(g_textbox_list[0].charFont == 20 ) {
-				g_textbox_list[0].charFont = 16;
-			}
-			if(g_textbox_list[0].charFont == 24 ) {
-				g_textbox_list[0].charFont = 20;
-			}
-		};
-
-		if(button1_state == GPIO_PIN_RESET) { /*button pressed*/
-			dsp_scrollTexboxRelative(&(g_textbox_list[0]), 0, 1);
-		}
-
-		if(button2_state == GPIO_PIN_RESET) { /*button pressed*/
-			dsp_scrollTexboxRelative(&(g_textbox_list[1]), 1, 0);
-		}
-		WWDG_Refresh();
-
-		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_2, 1, eRunning);
-		osDelay(10);
-
-	}
-
-
-}
 
 uint8_t uartReadBuffer[100];
 uint8_t puartReadBuffer=0;
@@ -353,9 +321,9 @@ void uartReadTask(void const * argument) {
 		HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Nucleo alive!\r", 14);
 		osDelay(1000);
 		HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"wait!\r", 6);
-		osDelay(10000);
+		osDelay(1000);
 		HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Nucleo alive 2!\r", 16);
-		osDelay(10000);
+		osDelay(1000);
 
        while(1) {
                if(lineEndReceived) {
@@ -405,7 +373,13 @@ int main(void)
     MX_FREERTOS_Init();
   /* USER CODE BEGIN 2 */
 
+    button_addEventHandler(BUTTON_1, EVENT_LONG_PRESS, scrollDown );
+	button_addEventHandler(BUTTON_2, EVENT_LONG_PRESS, scrollUp );
 
+	button_addEventHandler(BUTTON_1, EVENT_RELEASE, resetScroll );
+	button_addEventHandler(BUTTON_2, EVENT_RELEASE, nextText );
+	dsp_text_setText( &(g_textbox_list[0]),text_1, 0);
+	dsp_text_setText( &(g_textbox_list[1]),text_1, 0);
 
   /* USER CODE END 2 */
 

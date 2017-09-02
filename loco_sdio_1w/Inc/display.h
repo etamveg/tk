@@ -54,4 +54,5 @@ void dsp_setPixelInTextbox(dsp_textbox_t *tb, uint8_t x, uint8_t y);
 void dsp_clearPixelInTextbox(dsp_textbox_t *tb, uint8_t x, uint8_t y);
 void dsp_fillTextBoxWithText(dsp_textbox_t *tb);
 void dsp_scrollTexboxRelative(dsp_textbox_t *tb, int32_t x_px, int32_t y_px);
+void dsp_scrollTexboxAbsolute(dsp_textbox_t *tb, int32_t x_px, int32_t y_px);
 #endif /* DISPLAY_H_ */

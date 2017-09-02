@@ -115,13 +115,6 @@ uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character) {
 	return offset;
 }
 
-uint8_t text[] = "Logan Wheat went out on a small boat to check on cattle and ended up capturing one of the most startling photos of flooding from Harvey.\
-		What used to be Interstate 10, south of Beaumont, Texas, looked like an ocean, with waves lapping.\
-		This split screen shows what that stretch of I-10 looked like before Harvey hit -- and what it looks like now.\
-		The wind-churned waves almost tipped Wheat's boat over, Wheat told CNN.\
-		The boat was being thrown around a lot, he said.\
-		The waves, he added, were anywhere from 3 to 4 feet.";
-
 void dsp_displayInitWithCommands(void){
 	HAL_Display_RESET(0);
 	osDelay(1);
@@ -164,28 +157,18 @@ void dsp_displayInitWithCommands(void){
 TaskStatus_t task_4;
 
 void displayTask(void const * argument) {
-	int i=0;
 	dsp_displayInitWithCommands();
 	//dsp_writeDisplayCmd(0xa6);
 	HAL_Display_CorD(DISPLAY_DATA);
 
 	dsp_printLineToMemory(displayData, 8, 0, 0, (uint8_t*)"Hello!", 6);
 
-	dsp_text_InitTextbox( &(g_textbox_list[0]), 24, 150, 8, 8, 8, 5 );
-	dsp_text_setText( &(g_textbox_list[0]), text, 0);
-
+	dsp_text_InitTextbox( &(g_textbox_list[0]), 24, 150, 8, 8, 12, 5 );
 
 	dsp_text_InitTextbox( &(g_textbox_list[1]), 30, 90, 160, 1, 8, 5 );
-	dsp_text_setText( &(g_textbox_list[1]), text, 0);
-
 
 	while(1){
-		i++;
-		if(i>=9) {
-			g_textbox_list[0].charOffset_px++;
-			g_textbox_list[1].lineOffset_px++;
-			i=0;
-		}
+
 
 		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_4, 1, eRunning);
 		dsp_fillTextBoxWithText(&(g_textbox_list[0]));
@@ -193,7 +176,7 @@ void displayTask(void const * argument) {
 		dsp_fillTextBoxWithText(&(g_textbox_list[1]));
 		dsp_txt_printTBToMemory(&(g_textbox_list[1]), displayData);
 		dsp_writeDataToDisplay(displayData, displayGrayscale);
-		osDelay(100);
+		osDelay(1);
 
 	}
 
@@ -336,11 +319,19 @@ uint8_t dsp_getTextboxPixel(dsp_textbox_t *tb, uint8_t x, uint8_t y){
 }
 
 void dsp_scrollTexboxRelative(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
-	if(tb->lineOffset_px + x_px >= 0) {
+	if((int)tb->lineOffset_px + x_px >= 0) {
 		tb->lineOffset_px += x_px;
 	}
-	if(tb->charOffset_px + y_px >= 0) {
+	if((int)tb->charOffset_px + y_px >= 0) {
 		tb->charOffset_px += y_px;
 	}
 }
 
+void dsp_scrollTexboxAbsolute(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
+	if(x_px >= 0) {
+		tb->lineOffset_px = x_px;
+	}
+	if(y_px >= 0) {
+		tb->charOffset_px = y_px;
+	}
+}
