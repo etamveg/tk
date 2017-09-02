@@ -220,13 +220,12 @@ osThreadId buttonReadTaskHandle;
 TaskStatus_t task_2;
 GPIO_PinState button1_state, button2_state;
 void buttonReadTask(void const * argument) {
-	uint8_t char_offset = 11;
+
 	while(1) {
 		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_SET &&
 			button1_state == GPIO_PIN_RESET) {
 			button1_state = GPIO_PIN_SET;
-			char_offset++;
-			dsp_printLineToMemory(displayData, 8, 0, 0, "Hello!", 6);
+			dsp_scrollTexboxRelative(&(g_textbox_list[0]), 0, 1);
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button1 released\r", 18);
 		};
 		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_RESET &&
@@ -236,12 +235,11 @@ void buttonReadTask(void const * argument) {
 		};
 
 
-
 		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_SET &&
 			button2_state == GPIO_PIN_RESET) {
 			button2_state = GPIO_PIN_SET;
-			char_offset--;
-			dsp_printLineToMemory(displayData, 8, 0, 0, "TAMAS kiirja!", 13);
+
+
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 released\r", 18);
 		};
 		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_RESET &&
@@ -249,6 +247,14 @@ void buttonReadTask(void const * argument) {
 			button2_state = GPIO_PIN_RESET;
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 pressed\r", 17);
 		};
+
+		if(button1_state == GPIO_PIN_RESET) { /*button pressed*/
+			dsp_scrollTexboxRelative(&(g_textbox_list[0]), 0, 1);
+		}
+
+		if(button2_state == GPIO_PIN_RESET) { /*button pressed*/
+			dsp_scrollTexboxRelative(&(g_textbox_list[1]), 1, 0);
+		}
 		WWDG_Refresh();
 
 		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_2, 1, eRunning);

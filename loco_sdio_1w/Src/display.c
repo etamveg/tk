@@ -9,6 +9,7 @@
 #include "fonts.h"
 #include "spi.h"
 #include "cmsis_os.h"
+#include <stdlib.h>
 uint8_t displayData[256*4];
 uint8_t displayGrayscale = 0xf;
 
@@ -163,32 +164,33 @@ void dsp_displayInitWithCommands(void){
 TaskStatus_t task_4;
 
 void displayTask(void const * argument) {
-
+	int i=0;
 	dsp_displayInitWithCommands();
 	//dsp_writeDisplayCmd(0xa6);
 	HAL_Display_CorD(DISPLAY_DATA);
-	int x=0,y=0, x1=100, y1=10, i=0;
-	int xdir=0, ydir=0, x1dir=1, y1dir=0;
 
-	dsp_printLineToMemory(displayData, 8, 0, 0, "Hello!", 6);
+	dsp_printLineToMemory(displayData, 8, 0, 0, (uint8_t*)"Hello!", 6);
 
-	dsp_text_InitTextbox( &(g_textbox_list[1]), 16, 150, 8, 10, 8, 5 );
+	dsp_text_InitTextbox( &(g_textbox_list[0]), 16, 150, 8, 10, 8, 5 );
+	dsp_text_setText( &(g_textbox_list[0]), text, 0);
+
+
+	dsp_text_InitTextbox( &(g_textbox_list[1]), 30, 90, 160, 1, 8, 5 );
 	dsp_text_setText( &(g_textbox_list[1]), text, 0);
-
-
 
 
 	while(1){
 		i++;
-		if(i==20) {
-			g_textbox_list[1].linePointer_nr++;
+		if(i>=9) {
+			g_textbox_list[0].charOffset_px++;
+			g_textbox_list[1].lineOffset_px++;
 			i=0;
-		}
-		if(g_textbox_list[1].linePointer_nr==10) {
-			g_textbox_list[1].linePointer_nr=0;
 		}
 
 		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_4, 1, eRunning);
+		dsp_fillTextBoxWithText(&(g_textbox_list[0]));
+		dsp_txt_printTBToMemory(&(g_textbox_list[0]), displayData);
+		dsp_fillTextBoxWithText(&(g_textbox_list[1]));
 		dsp_txt_printTBToMemory(&(g_textbox_list[1]), displayData);
 		dsp_writeDataToDisplay(displayData, displayGrayscale);
 		osDelay(100);
@@ -200,36 +202,111 @@ void displayTask(void const * argument) {
 
 
 void dsp_text_InitTextbox( dsp_textbox_t *tb, uint8_t height, uint8_t width, uint8_t x_0_pos, uint8_t y_0_pos, uint8_t font, uint8_t grayscale ) {
+	uint8_t textBoxDataLength;
 	tb->height_px = height;
 	tb->width_px = width;
 	tb->x_pos_px = x_0_pos;
 	tb->y_pos_px = y_0_pos;
 	tb->charFont = font;
 	tb->charGrayscale = grayscale;
+	textBoxDataLength = tb->height_px*tb->width_px/8;
+	if((tb->height_px*tb->width_px)%8) {
+		textBoxDataLength++;
+	}
+	tb->textBoxData = malloc(textBoxDataLength);
 }
 
-void dsp_text_setText( dsp_textbox_t *tb, uint8_t *data, uint32_t line_ptr) {
+void dsp_text_DeleteTextbox(dsp_textbox_t *tb) {
+	free(tb->textBoxData);
+}
+
+void dsp_text_setText( dsp_textbox_t *tb, uint8_t *data, uint32_t dataLength) {
 	tb->textData_char = data;
-	tb->linePointer_nr = 0;
-}
-
-void dsp_txt_printTBToMemory(dsp_textbox_t *tb, uint8_t *displayData) {
-	uint8_t char_height,char_width, visible_lines, visible_characters;
-	sFONT *currentFont;
-	int i;
-	currentFont = dsp_getFontDescriptor(tb->charFont);
-	char_height = currentFont->Height;
-	char_width = currentFont->Width;
-	visible_lines = tb->height_px / char_height;
-	visible_characters = tb->width_px / char_width;
-	for(i=0;i<visible_lines; i++) {
-		dsp_printLineToMemory(displayData, tb->charFont, tb->x_pos_px, tb->y_pos_px + i*char_height, tb->textData_char + tb->linePointer_nr*visible_characters + i*visible_characters, visible_characters);
+	if(dataLength == 0) {
+		int i;
+		for(i=0;i<DSP_TEXTBOX_MAX_TEXT_LENGTH; i++){
+			if(data[i] == '\0') {
+				tb->textData_length = i;
+				return;
+			}
+		}
+		tb->textData_length = DSP_TEXTBOX_MAX_TEXT_LENGTH;
+	} else {
+		tb->textData_length = dataLength;
 	}
 }
 
+void dsp_txt_printTBToMemory(dsp_textbox_t *tb, uint8_t *displayData) {
+	int cx,cy;
+	for(cy=0; cy<tb->height_px ; cy++){
+		for(cx=0; cx<tb->width_px; cx++){
+			if(dsp_getTextboxPixel(tb, cx, cy)) {
+				dsp_setPixelToMemory(displayData,tb->x_pos_px+cx,tb->y_pos_px+cy);
+			} else {
+				dsp_clearPixelFromMemory(displayData,tb->x_pos_px+cx,tb->y_pos_px+cy);
+			}
+		}
+	}
 
 
+}
 
+void dsp_fillTextBoxWithText(dsp_textbox_t *tb) {
+	int cy, cx, p_startChr, firstLineYOffset, firstCharXOffset, characterToDisplay, charPerLine;
+	sFONT *currentFont;
 
+	currentFont = dsp_getFontDescriptor(tb->charFont);
+	charPerLine = tb->width_px/currentFont->Width;
+	p_startChr = tb->lineOffset_px/currentFont->Height * charPerLine + tb->charOffset_px/currentFont->Width;
+	firstLineYOffset = tb->lineOffset_px%currentFont->Height;
+	firstCharXOffset = tb->charOffset_px%currentFont->Width;
+	for(cy=0; cy<tb->height_px ; cy++){
+		for(cx=0; cx<tb->width_px; cx++){
+			characterToDisplay = p_startChr + (cx+firstCharXOffset)/currentFont->Width + (cy+firstLineYOffset)/currentFont->Height*charPerLine;
+			if( currentFont->table[ currentFont->Height*dsp_calculateCharTableOffsetOfChar(tb->textData_char[characterToDisplay])+(cy+firstLineYOffset)%currentFont->Height] & (0x80>>(cx+firstCharXOffset)%currentFont->Width)) {
+				dsp_setPixelInTextbox(tb,cx,cy);
+			} else {
+				dsp_clearPixelInTextbox(tb,cx,cy);
+			}
+		}
+	}
+}
 
+void dsp_setPixelInTextbox(dsp_textbox_t *tb, uint8_t x, uint8_t y){
+
+	uint32_t pos;
+	if(x>=tb->width_px || y>=tb->height_px) {
+		return;
+	}
+	pos = x+y*tb->width_px;
+	tb->textBoxData[pos/8] |= (1 << (pos%8));
+
+}
+void dsp_clearPixelInTextbox(dsp_textbox_t *tb, uint8_t x, uint8_t y){
+
+	uint32_t pos;
+	if(x>=tb->width_px || y>=tb->height_px) {
+		return;
+	}
+	pos = x+y*tb->width_px;
+	tb->textBoxData[pos/8] &= ~(1 << (pos%8));
+
+}
+uint8_t dsp_getTextboxPixel(dsp_textbox_t *tb, uint8_t x, uint8_t y){
+	uint32_t pos;
+	if(x>=tb->width_px || y>=tb->height_px) {
+		return 0;
+	}
+	pos = x+y*tb->width_px;
+	return tb->textBoxData[pos/8] & (1 << (pos%8));
+}
+
+void dsp_scrollTexboxRelative(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
+	if(tb->lineOffset_px + x_px >= 0) {
+		tb->lineOffset_px += x_px;
+	}
+	if(tb->charOffset_px + y_px >= 0) {
+		tb->charOffset_px += y_px;
+	}
+}
 
