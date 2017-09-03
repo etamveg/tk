@@ -56,6 +56,7 @@
 #include "display.h"
 #include "button.h"
 #include "file_handler.h"
+#include "menu_handler.h"
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -85,30 +86,6 @@ void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
-void scrollDown(uint32_t duration) {
-	dsp_scrollTexboxRelative(&(g_textbox_list[0]), 0, 2);
-	dsp_scrollTexboxRelative(&(g_textbox_list[1]), 5, 0);
-}
-void scrollUp(uint32_t duration) {
-	dsp_scrollTexboxRelative(&(g_textbox_list[0]), 0, -2);
-	dsp_scrollTexboxRelative(&(g_textbox_list[1]), -5, 0);
-}
-void resetScroll(uint32_t duration) {
-	dsp_scrollTexboxAbsolute(&(g_textbox_list[0]), 0, 0);
-	dsp_scrollTexboxAbsolute(&(g_textbox_list[1]), 0, 0);
-}
-void nextText(uint32_t duration) {
-	if(used_text == 1) {
-		dsp_text_setText( &(g_textbox_list[0]),text_2, 0);
-		dsp_text_setText( &(g_textbox_list[1]),text_2, 0);
-		used_text = 2;
-	} else if (used_text == 2) {
-		dsp_text_setText( &(g_textbox_list[0]),text_1, 0);
-		dsp_text_setText( &(g_textbox_list[1]),text_1, 0);
-		used_text = 1;
-	}
-
-}
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -234,13 +211,14 @@ int main(void)
     MX_FREERTOS_Init();
   /* USER CODE BEGIN 2 */
 
-    button_addEventHandler(BUTTON_1, EVENT_LONG_PRESS, scrollDown );
-	button_addEventHandler(BUTTON_2, EVENT_LONG_PRESS, scrollUp );
+    button_addEventHandler(BUTTON_1, EVENT_LONG_PRESS, menu_enterEvent );
+	button_addEventHandler(BUTTON_2, EVENT_LONG_PRESS, menu_exitEvent );
 
-	button_addEventHandler(BUTTON_1, EVENT_RELEASE, resetScroll );
-	button_addEventHandler(BUTTON_2, EVENT_RELEASE, nextText );
-	dsp_text_setText( &(g_textbox_list[0]),text_1, 0);
-	dsp_text_setText( &(g_textbox_list[1]),text_1, 0);
+	button_addEventHandler(BUTTON_1, EVENT_RELEASE, menu_downEvent );
+	button_addEventHandler(BUTTON_2, EVENT_RELEASE, menu_upEvent );
+
+	menu_logicStateMachine(EVENT_NONE);
+
 
   /* USER CODE END 2 */
 

@@ -11,14 +11,27 @@
 #include "spi.h"
 #include "stm32f4xx_hal.h"
 #include "cmsis_os.h"
+#include "display.h"
+#include <stdlib.h>
+#include <string.h>
 
 FATFS SDDISKFatFs;  /* File system object for RAM disk logical drive */
 FIL MyFile;          /* File object */
 extern char SD_Path[];/* StartDefaultTask function */
+
 FRESULT res;                                          /* FatFs function common result code */
 uint32_t byteswritten, bytesread;                     /* File write/read counts */
+
 uint8_t wtext[] = "This is STM32 working with FatFs"; /* File write buffer */
-uint8_t rtext[100];
+uint8_t rtext[1000];
+uint32_t g_file_read_len, g_file_read_off;
+
+char fil_dir_name[30];
+char directoryContent[FILE_DIR_LIST_BUFFER_LEN];
+char currentPath[FILE_MAX_PATH_LEN];
+
+uint8_t currentRequest = 0;
+uint8_t *requestStatusIndicator;
 
 void debug_sendSerial(const char * msg) {
 	int i;
@@ -31,7 +44,9 @@ void debug_sendSerial(const char * msg) {
 }
 
 FRESULT scan_files (
-    char* path        /* Start node to be scanned (also used as work area) */
+    char* path,       /* Start node to be scanned (also used as work area) */
+	char *dest,
+	char length
 )
 {
     FRESULT res;
@@ -52,19 +67,20 @@ FRESULT scan_files (
         for (;;) {
             res = f_readdir(&dir, &fno);                   /* Read a directory item */
             if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
-            if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
 #if _USE_LFN
             fn = *fno.lfname ? fno.lfname : fno.fname;
 #else
             fn = fno.fname;
 #endif
-            if (fno.fattrib & AM_DIR) {                    /* It is a directory */
-                sprintf(&path[i], "/%s", fn);
-                res = scan_files(path);
-                path[i] = 0;
-                if (res != FR_OK) break;
+            if (fno.fname[0] == '.') {
+            	i = strlen(dest);
+            	snprintf(&dest[i], length-i, "%s/.\n", path);
+            } else if (fno.fattrib & AM_DIR) {                    /* It is a directory */
+            	i = strlen(dest);
+            	snprintf(&dest[i], length-i, "%s/%s...\n", path, fn);
             } else {                                       /* It is a file. */
-                printf("%s/%s\n", path, fn);
+            	i = strlen(dest);
+            	snprintf(&dest[i], length-i, "%s/%s\n", path, fn);
             }
         }
         f_closedir(&dir);
@@ -72,10 +88,11 @@ FRESULT scan_files (
 
     return res;
 }
-char path[100];
+
 TaskStatus_t task_3;
 void fileHandlerTask(void const * argument) {
 
+	strcpy(currentPath, SD_Path);
 	osDelay(100);
 	/*##-2- Register the file system object to the FatFs module ##############*/
 	while(f_mount(&SDDISKFatFs, "", 1/*(TCHAR const*)SD_Path, 0*/) != FR_OK)
@@ -185,91 +202,111 @@ void fileHandlerTask(void const * argument) {
 			}
 		}
 	}
-	path[0] = '0';
-	path[1] = ':';
-	path[2] = '/';
-	path[3] = 'a';
-	path[4] = 'a';
-	path[5] = 'a';
-	path[6] = '/';
-	path[7] = '\0';
-	scan_files(path);
-	path[0] = '0';
-		path[1] = ':';
-		path[2] = '/';
-		path[3] = '\0';
-	scan_files(path);
-	path[0] = '0';
-		path[1] = ':';
-		path[2] = '/';
-		path[3] = '\0';
-	scan_files(path);
-	path[0] = '0';
-		path[1] = ':';
-		path[2] = '/';
-		path[3] = '\0';
-	scan_files(path);
-	path[0] = '0';
-		path[1] = ':';
-		path[2] = '/';
-		path[3] = '\0';
-	scan_files(path);
-	scan_files(path);
-	scan_files(path);
+
+	scan_files(SD_Path, directoryContent, FILE_DIR_LIST_BUFFER_LEN);
+	debug_sendSerial(directoryContent);
 
 
 	while(1){
 
 		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_3, 1, eRunning);
 
-//		switch(currentRequest) {
-//		case READ_DATA_FROM_FILE:
-//			debug_sendSerial("read from file\r");
-//			break;
-//		case WRITE_DATA_TO_FILE:
-//			debug_sendSerial("write file\r");
-//			break;
-//		case GET_DIRECTORY_CONTENT:
-//			debug_sendSerial("get dir content\r");
-//			break;
-//		case OPEN_DIRECTORY:
-//			debug_sendSerial("open dir\r");
-//			break;
-//		case CLOSE_CURRENT_DIRECTORY:
-//			debug_sendSerial("close dir\r");
-//			break;
-//		}
+		switch(currentRequest) {
+		case READ_DATA_FROM_FILE:
+			debug_sendSerial("read from file\r");
+			if(f_open(&MyFile, fil_dir_name, FA_READ) != FR_OK) {
+				debug_sendSerial(fil_dir_name);
+				osDelay(10);
+				debug_sendSerial(" - open file not ok\r");
+				return;
+			} else {
+				debug_sendSerial(fil_dir_name);
+				osDelay(10);
+				debug_sendSerial(" - file open\r");
+			}
+
+			f_lseek(&MyFile, g_file_read_off);
+
+			if(f_read(&MyFile, rtext, g_file_read_len, &bytesread) != FR_OK) {
+				debug_sendSerial(fil_dir_name);
+				osDelay(10);
+				debug_sendSerial(" - read from file not ok\r");
+				return;
+			} else {
+				debug_sendSerial(fil_dir_name);
+				osDelay(10);
+				debug_sendSerial(" - file read ok\r");
+			}
+
+			f_close(&MyFile);
+			*requestStatusIndicator = 1;
+			requestStatusIndicator = 0;
+			currentRequest = 0;
+			break;
+		case WRITE_DATA_TO_FILE:
+			debug_sendSerial("write file\r");
+
+			*requestStatusIndicator = 1;
+			requestStatusIndicator = 0;
+			currentRequest = 0;
+			break;
+		case GET_DIRECTORY_CONTENT:
+			scan_files(currentPath, directoryContent, FILE_DIR_LIST_BUFFER_LEN);
+			debug_sendSerial("get dir content\r");
+			*requestStatusIndicator = 1;
+			requestStatusIndicator = 0;
+			break;
+		case OPEN_DIRECTORY:
+			debug_sendSerial("open dir\r");
+			*requestStatusIndicator = 1;
+			requestStatusIndicator = 0;
+			currentRequest = 0;
+			break;
+		case CLOSE_CURRENT_DIRECTORY:
+			debug_sendSerial("close dir\r");
+			*requestStatusIndicator = 1;
+			requestStatusIndicator = 0;
+			currentRequest = 0;
+			break;
+		}
 
 		osDelay(100);
 	}
 
 }
 
-void sd_read(uint8_t *fileName, uint32_t offset, uint32_t length, uint8_t *buffer) {
-	uint32_t read_bytes;
-	if(f_open(&MyFile, fileName, FA_READ) != FR_OK) {
-		debug_sendSerial(fileName);
-		osDelay(10);
-		debug_sendSerial(" - open file not ok\r");
-		return;
-	} else {
-		debug_sendSerial(fileName);
-		osDelay(10);
-		debug_sendSerial(" - file open\r");
-	}
+void file_getDirectoryContent(char **content, uint32_t *length) {
+	*content = directoryContent;
+	length = FILE_DIR_LIST_BUFFER_LEN;
 
-	f_lseek(&MyFile, offset);
-
-	if(f_read(&MyFile, buffer, length, &read_bytes) != FR_OK) {
-		debug_sendSerial(fileName);
-		osDelay(10);
-		debug_sendSerial(" - read from file not ok\r");
-		return;
-	} else {
-		debug_sendSerial(fileName);
-		osDelay(10);
-		debug_sendSerial(" - file read ok\r");
+}
+uint8_t file_refreshDirectoryContent(uint8_t *refreshFinished) {
+	if(requestStatusIndicator != NULL) {
+		return 1;
 	}
+	currentRequest = GET_DIRECTORY_CONTENT;
+	requestStatusIndicator = refreshFinished;
+	*refreshFinished = 0;
+	return 0;
+}
+
+void file_getFileContent(char **buffer, uint32_t *len) {
+	*buffer = rtext;
+	len = g_file_read_len;
+}
+uint8_t file_readTextRequest(uint8_t *fileName, uint32_t offset, uint32_t length, uint8_t *readFinished) {
+	if(requestStatusIndicator != NULL) {
+		return 1;
+	}
+	currentRequest = READ_DATA_FROM_FILE;
+	requestStatusIndicator = readFinished;
+	*readFinished = 0;
+
+	g_file_read_len = length;
+	g_file_read_off = offset;
+
+	strcpy(fil_dir_name,fileName);
+	return 0;
 }
 
 void sd_openDir() {

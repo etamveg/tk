@@ -16,6 +16,12 @@ uint8_t displayDataChanged = 0;
 
 dsp_textbox_t g_textbox_list[2];
 
+void dsp_cleanDisplayData(uint8_t *data){
+	int i;
+	for(i=0; i<256*4;i++){
+		data[i]=0;
+	}
+}
 void dsp_setPixelToMemory(uint8_t *data, uint8_t x, uint8_t y);
 void dsp_clearPixelFromMemory(uint8_t *data, uint8_t x, uint8_t y);
 void dsp_writeDataToDisplay(uint8_t *data, uint8_t grayScale);
@@ -164,20 +170,11 @@ void displayTask(void const * argument) {
 	//dsp_writeDisplayCmd(0xa6);
 	HAL_Display_CorD(DISPLAY_DATA);
 
-	dsp_printLineToMemory(displayData, 8, 0, 0, (uint8_t*)"Hello!", 6);
-
-	dsp_text_InitTextbox( &(g_textbox_list[0]), 24, 150, 8, 8, 12, 5 );
-
-	dsp_text_InitTextbox( &(g_textbox_list[1]), 30, 90, 160, 1, 8, 5 );
-
 	while(1){
 
 
 		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_4, 1, eRunning);
-		dsp_fillTextBoxWithText(&(g_textbox_list[0]));
-		dsp_txt_printTBToMemory(&(g_textbox_list[0]), displayData);
-		dsp_fillTextBoxWithText(&(g_textbox_list[1]));
-		dsp_txt_printTBToMemory(&(g_textbox_list[1]), displayData);
+
 
 		if(displayDataChanged || i >= 50){
 			displayDataChanged = 0;
