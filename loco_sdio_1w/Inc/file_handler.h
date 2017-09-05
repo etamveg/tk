@@ -25,6 +25,8 @@ void file_getDirectoryContent(char **content, uint32_t *length);
 uint8_t file_refreshDirectoryContent(uint8_t *refreshFinished);
 void file_getFileContent(char **buffer, uint32_t *len);
 uint8_t file_readTextRequest(uint8_t *fileName, uint32_t offset, uint32_t length, uint8_t *readFinished);
-
-
+void file_getCurrentPath(char **path);
+uint8_t file_refreshDirectoryContent(uint8_t *refreshFinished);
+void file_getDirectoryContent(char **content, uint32_t *length);
+void file_getCurrentPath(char **path);
 #endif /* FILE_HANDLER_H_ */

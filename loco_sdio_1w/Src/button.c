@@ -19,7 +19,7 @@ void buttonReadTask(void const * argument) {
 
 	while(1) {
 		if( HAL_GPIO_ReadPin(GPIOC, button_1_Pin) == GPIO_PIN_SET &&
-				button1.buttonState == BUTTON_PRESSED) {
+				(button1.buttonState == BUTTON_PRESSED || button1.buttonState == BUTTON_PRESSED_LONG_PRESS_EVENT_SENT) ) {
 			button1.buttonState = BUTTON_JUST_RELEASED;
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button1 released\r", 18);
 
@@ -32,7 +32,7 @@ void buttonReadTask(void const * argument) {
 
 
 		if( HAL_GPIO_ReadPin(GPIOC, button_2_Pin) == GPIO_PIN_SET &&
-				button2.buttonState == BUTTON_PRESSED) {
+				(button2.buttonState == BUTTON_PRESSED || button2.buttonState == BUTTON_PRESSED_LONG_PRESS_EVENT_SENT) ) {
 			button2.buttonState = BUTTON_JUST_RELEASED;
 			HAL_UART_Transmit_IT(USART2_getHandle(), (uint8_t*)"Button2 released\r", 18);
 		};
@@ -58,8 +58,10 @@ void buttonReadTask(void const * argument) {
 
 			button1.buttonStateTime = 0;
 		} else if(button1.buttonState == BUTTON_PRESSED ) {
-			if(button1.buttonStateTime > BUTTON_LONG_PRESS_TIME)
+			if(button1.buttonStateTime > BUTTON_LONG_PRESS_TIME) {
 				button_eventNotify(BUTTON_1, EVENT_LONG_PRESS, button1.buttonStateTime);
+				button1.buttonState = BUTTON_PRESSED_LONG_PRESS_EVENT_SENT;
+			}
 		}
 
 		if(button2.buttonState == BUTTON_JUST_RELEASED ) {
@@ -75,8 +77,10 @@ void buttonReadTask(void const * argument) {
 
 			button2.buttonStateTime = 0;
 		} else if(button2.buttonState == BUTTON_PRESSED ) {
-			if(button2.buttonStateTime > BUTTON_LONG_PRESS_TIME)
+			if(button2.buttonStateTime > BUTTON_LONG_PRESS_TIME) {
 				button_eventNotify(BUTTON_2, EVENT_LONG_PRESS, button2.buttonStateTime);
+				button2.buttonState = BUTTON_PRESSED_LONG_PRESS_EVENT_SENT;
+			}
 		}
 
 		WWDG_Refresh();

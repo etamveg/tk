@@ -12,6 +12,7 @@
 #include "stm32f4xx_hal.h"
 #include "cmsis_os.h"
 #include "display.h"
+#include "usart.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,7 +47,7 @@ void debug_sendSerial(const char * msg) {
 FRESULT scan_files (
     char* path,       /* Start node to be scanned (also used as work area) */
 	char *dest,
-	char length
+	uint32_t length
 )
 {
     FRESULT res;
@@ -92,7 +93,6 @@ FRESULT scan_files (
 TaskStatus_t task_3;
 void fileHandlerTask(void const * argument) {
 
-	strcpy(currentPath, SD_Path);
 	osDelay(100);
 	/*##-2- Register the file system object to the FatFs module ##############*/
 	while(f_mount(&SDDISKFatFs, "", 1/*(TCHAR const*)SD_Path, 0*/) != FR_OK)
@@ -203,7 +203,8 @@ void fileHandlerTask(void const * argument) {
 		}
 	}
 
-	scan_files(SD_Path, directoryContent, FILE_DIR_LIST_BUFFER_LEN);
+	strcpy(currentPath, SD_Path);
+	scan_files(currentPath, directoryContent, FILE_DIR_LIST_BUFFER_LEN);
 	debug_sendSerial(directoryContent);
 
 
@@ -227,7 +228,7 @@ void fileHandlerTask(void const * argument) {
 
 			f_lseek(&MyFile, g_file_read_off);
 
-			if(f_read(&MyFile, rtext, g_file_read_len, &bytesread) != FR_OK) {
+			if(f_read(&MyFile, rtext, g_file_read_len, (UINT*)&bytesread) != FR_OK) {
 				debug_sendSerial(fil_dir_name);
 				osDelay(10);
 				debug_sendSerial(" - read from file not ok\r");
@@ -255,6 +256,7 @@ void fileHandlerTask(void const * argument) {
 			debug_sendSerial("get dir content\r");
 			*requestStatusIndicator = 1;
 			requestStatusIndicator = 0;
+			currentRequest = 0;
 			break;
 		case OPEN_DIRECTORY:
 			debug_sendSerial("open dir\r");
@@ -277,7 +279,7 @@ void fileHandlerTask(void const * argument) {
 
 void file_getDirectoryContent(char **content, uint32_t *length) {
 	*content = directoryContent;
-	length = FILE_DIR_LIST_BUFFER_LEN;
+	*length = FILE_DIR_LIST_BUFFER_LEN;
 
 }
 uint8_t file_refreshDirectoryContent(uint8_t *refreshFinished) {
@@ -291,8 +293,8 @@ uint8_t file_refreshDirectoryContent(uint8_t *refreshFinished) {
 }
 
 void file_getFileContent(char **buffer, uint32_t *len) {
-	*buffer = rtext;
-	len = g_file_read_len;
+	*buffer = (char *)rtext;
+	*len = g_file_read_len;
 }
 uint8_t file_readTextRequest(uint8_t *fileName, uint32_t offset, uint32_t length, uint8_t *readFinished) {
 	if(requestStatusIndicator != NULL) {
@@ -305,10 +307,13 @@ uint8_t file_readTextRequest(uint8_t *fileName, uint32_t offset, uint32_t length
 	g_file_read_len = length;
 	g_file_read_off = offset;
 
-	strcpy(fil_dir_name,fileName);
+	strcpy((char*)fil_dir_name,(char*)fileName);
 	return 0;
 }
 
+void file_getCurrentPath(char **path) {
+	*path = currentPath;
+}
 void sd_openDir() {
 	;
 }

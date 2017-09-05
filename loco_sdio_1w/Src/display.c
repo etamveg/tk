@@ -176,7 +176,7 @@ void displayTask(void const * argument) {
 		vTaskGetInfo( xTaskGetCurrentTaskHandle(), &task_4, 1, eRunning);
 
 
-		if(displayDataChanged || i >= 50){
+		if(displayDataChanged || i >= 10){
 			displayDataChanged = 0;
 			i=0;
 			dsp_writeDataToDisplay(displayData, displayGrayscale);
@@ -192,7 +192,7 @@ void displayTask(void const * argument) {
 
 
 void dsp_text_InitTextbox( dsp_textbox_t *tb, uint8_t height, uint8_t width, uint8_t x_0_pos, uint8_t y_0_pos, uint8_t font, uint8_t grayscale ) {
-	uint8_t textBoxDataLength;
+	uint32_t textBoxDataLength;
 	tb->height_px = height;
 	tb->width_px = width;
 	tb->x_pos_px = x_0_pos;
@@ -207,7 +207,22 @@ void dsp_text_InitTextbox( dsp_textbox_t *tb, uint8_t height, uint8_t width, uin
 }
 
 void dsp_text_DeleteTextbox(dsp_textbox_t *tb) {
+	tb->structTypeX=0;
+	tb->height_px=0;
+	tb->width_px=0;
+	tb->x_pos_px=0;
+	tb->y_pos_px=0;
+
+	tb->textData_char=0;
+	tb->textData_length=0;
+	tb->charOffset_px=0;
+
+	tb->lineOffset_px=0;
+
+	tb->charFont=0;
+	tb->charGrayscale=0;
 	free(tb->textBoxData);
+	tb->textBoxData=0;
 }
 
 void dsp_text_setText( dsp_textbox_t *tb, uint8_t *data, uint32_t dataLength) {
@@ -217,6 +232,7 @@ void dsp_text_setText( dsp_textbox_t *tb, uint8_t *data, uint32_t dataLength) {
 		for(i=0;i<DSP_TEXTBOX_MAX_TEXT_LENGTH; i++){
 			if(data[i] == '\0') {
 				tb->textData_length = i;
+				displayDataChanged=1;
 				return;
 			}
 		}
@@ -227,6 +243,10 @@ void dsp_text_setText( dsp_textbox_t *tb, uint8_t *data, uint32_t dataLength) {
 	displayDataChanged=1;
 }
 
+void dsp_setTbPosition(dsp_textbox_t *tb, uint16_t xpos, uint16_t ypos) {
+	tb->x_pos_px = xpos;
+	tb->y_pos_px = ypos;
+}
 void dsp_txt_printTBToMemory(dsp_textbox_t *tb, uint8_t *displayData) {
 	int cx,cy;
 	for(cy=0; cy<tb->height_px ; cy++){

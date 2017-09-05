@@ -56,4 +56,6 @@ void dsp_fillTextBoxWithText(dsp_textbox_t *tb);
 void dsp_scrollTexboxRelative(dsp_textbox_t *tb, int32_t x_px, int32_t y_px);
 void dsp_scrollTexboxAbsolute(dsp_textbox_t *tb, int32_t x_px, int32_t y_px);
 void dsp_cleanDisplayData(uint8_t *data);
+void dsp_text_DeleteTextbox(dsp_textbox_t *tb);
+void dsp_setTbPosition(dsp_textbox_t *tb, uint16_t xpos, uint16_t ypos);
 #endif /* DISPLAY_H_ */

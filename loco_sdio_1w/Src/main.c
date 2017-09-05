@@ -214,8 +214,8 @@ int main(void)
     button_addEventHandler(BUTTON_1, EVENT_LONG_PRESS, menu_enterEvent );
 	button_addEventHandler(BUTTON_2, EVENT_LONG_PRESS, menu_exitEvent );
 
-	button_addEventHandler(BUTTON_1, EVENT_RELEASE, menu_downEvent );
-	button_addEventHandler(BUTTON_2, EVENT_RELEASE, menu_upEvent );
+	button_addEventHandler(BUTTON_2, EVENT_RELEASE, menu_downEvent );
+	button_addEventHandler(BUTTON_1, EVENT_RELEASE, menu_upEvent );
 
 	menu_logicStateMachine(EVENT_NONE);
 

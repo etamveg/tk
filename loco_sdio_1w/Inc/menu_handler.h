@@ -24,7 +24,7 @@ typedef enum menuEvent_e {
 	EVENT_ENTER
 } menuEvent_t;
 
-void menu_showMenu(menuStates_t menu);
+void menu_showMenu(menuStates_t menu, uint8_t menu_changed);
 void menu_logicStateMachine(menuEvent_t event);
 
 void menu_upEvent(uint32_t duration);
