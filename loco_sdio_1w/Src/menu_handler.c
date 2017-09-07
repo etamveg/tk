@@ -51,13 +51,19 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 			dsp_fillTextBoxWithText(&item_select);
 		}
 
+		dsp_setTbInversion(&start_page_a, 0);
+		dsp_setTbInversion(&start_page_b, 0);
+		dsp_setTbInversion(&start_page_c, 0);
 
 		if(menu_item_selector == 0 ){
 			dsp_setTbPosition(&item_select,3, 22);
+			dsp_setTbInversion(&start_page_a, 1);
 		} else if(menu_item_selector == 1 ){
 			dsp_setTbPosition(&item_select,88, 22);
+			dsp_setTbInversion(&start_page_b, 1);
 		} else if(menu_item_selector == 2 ){
 			dsp_setTbPosition(&item_select,173, 22);
+			dsp_setTbInversion(&start_page_c, 1);
 		}
 
 
@@ -158,12 +164,12 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 			dsp_text_setText( &item_select,(uint8_t*)item_select_text, 0);
 			dsp_fillTextBoxWithText(&item_select);
 		}
-		dsp_printLineToMemory(displayData, 8, 0, 0, (uint8_t*)"Settings", 8);
+		dsp_printLineToMemory(displayData, 8, 0, 0, (uint8_t*)"Settings", 8,256, 32, 0);
 
-		dsp_printLineToMemory(displayData, 8, 40, 8, (uint8_t*)"Set font", 8);
-		dsp_printLineToMemory(displayData, 8, 175, 8, (uint8_t*)"  8x5 ", 8);
-		dsp_printLineToMemory(displayData, 8, 175, 16, (uint8_t*)" 12x8 ", 8);
-		dsp_printLineToMemory(displayData, 8, 175, 24, (uint8_t*)"16x10 ", 8);
+		dsp_printLineToMemory(displayData, 8, 40, 8, (uint8_t*)"Set font", 8,256, 32, 0);
+		dsp_printLineToMemory(displayData, 8, 175, 8, (uint8_t*)"  8x5 ", 8,256, 32, menu_item_selector==0);
+		dsp_printLineToMemory(displayData, 8, 175, 16, (uint8_t*)" 12x8 ", 8,256, 32, menu_item_selector==1);
+		dsp_printLineToMemory(displayData, 8, 175, 24, (uint8_t*)"16x10 ", 8,256, 32, menu_item_selector==2);
 		if(menu_item_selector == 0 ){
 			dsp_setTbPosition(&item_select,210, 8);
 		} else if(menu_item_selector == 1 ){
@@ -193,7 +199,7 @@ void menu_logicStateMachine(menuEvent_t event) {
 					menu_item_selector = (menu_item_selector+1)%3;
 					break;
 				case EVENT_DOWN:
-					menu_item_selector = (menu_item_selector-1)%3;
+					if(menu_item_selector) menu_item_selector = (menu_item_selector-1)%3;
 					break;
 				case EVENT_EXIT:
 					break;

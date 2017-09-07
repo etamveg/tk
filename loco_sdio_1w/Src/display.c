@@ -28,7 +28,6 @@ void dsp_writeDataToDisplay(uint8_t *data, uint8_t grayScale);
 void dsp_printCharacterToMemory(uint8_t *data, uint8_t font, uint8_t base_x, uint8_t base_y, uint8_t char_offset);
 void dsp_displayInitWithCommands(void);
 uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character);
-
 void dsp_setPixelToMemory(uint8_t *data, uint8_t x, uint8_t y) {
 	uint32_t pos;
 	if(x>=256 || y>=32) {
@@ -68,7 +67,6 @@ void dsp_writeDataToDisplay(uint8_t *data, uint8_t grayScale){
 
 	}
 }
-
 sFONT *dsp_getFontDescriptor(uint8_t size){
 	sFONT *currentFont;
 	switch(size){
@@ -90,7 +88,6 @@ sFONT *dsp_getFontDescriptor(uint8_t size){
 	}
 	return currentFont;
 }
-
 void dsp_printCharacterToMemory(uint8_t *data, uint8_t font, uint8_t base_x, uint8_t base_y, uint8_t char_offset) {
 	int cy, cx;
 	sFONT *currentFont;
@@ -106,22 +103,78 @@ void dsp_printCharacterToMemory(uint8_t *data, uint8_t font, uint8_t base_x, uin
 		}
 	}
 }
-void dsp_printLineToMemory(uint8_t *data, uint8_t font, uint8_t base_x, uint8_t base_y, uint8_t *string, uint8_t string_len){
-	int i;
+void dsp_printLineToMemory(uint8_t *data,
+							uint8_t font,
+							uint8_t base_x,
+							uint8_t base_y,
+							uint8_t *string,
+							uint8_t string_len,
+							uint32_t display_width,
+							uint32_t display_height,
+							uint8_t is_inverted){
+	int cy, cx, pcharacterToDisplay, charPerLine;
+	uint8_t characterToDisplay;
+	uint8_t font_byteWidth;
+	uint8_t i;
+	uint32_t characterBitmap, p_fontTable, bitmapCheckPattern;
 	sFONT *currentFont;
+
 	currentFont = dsp_getFontDescriptor(font);
-	for(i=0;i<string_len;i++){
-		dsp_printCharacterToMemory(data, font, base_x+i*currentFont->Width, base_y, dsp_calculateCharTableOffsetOfChar(string[i]));
+
+	if( currentFont->Width <= 8 ) {
+		font_byteWidth = 1;
+	} else if( currentFont->Width <= 16 && currentFont->Width > 8  ) {
+		font_byteWidth = 2;
+	} else if ( currentFont->Width <= 24 && currentFont->Width > 16 ) {
+		font_byteWidth = 3;
+	}
+
+	bitmapCheckPattern = 1<<(font_byteWidth*8-1);
+
+	charPerLine = (display_width-base_y)/currentFont->Width;
+
+
+	for(cy=base_y; cy<base_y+currentFont->Height ; cy++){
+		for(cx=base_x; cx<base_x+currentFont->Width*string_len; cx++){
+
+
+			pcharacterToDisplay =  (cx-base_x)/currentFont->Width;
+			if(pcharacterToDisplay < string_len){
+				characterToDisplay = string[pcharacterToDisplay];
+			} else {
+				characterToDisplay = ' ';
+			}
+
+			characterBitmap=0;
+
+			p_fontTable = currentFont->Height*dsp_calculateCharTableOffsetOfChar(characterToDisplay)*font_byteWidth+font_byteWidth*(cy)%(currentFont->Height*font_byteWidth);
+
+			for(i=0; i<font_byteWidth; i++){
+				characterBitmap = characterBitmap<<8;
+				characterBitmap |= currentFont->table[p_fontTable+i];
+			}
+			if(is_inverted) {
+				if( (characterBitmap & (bitmapCheckPattern>>(cx)%currentFont->Width))) {
+					dsp_clearPixelFromMemory(data,cx,cy);
+				} else {
+					dsp_setPixelToMemory(data,cx,cy);
+				}
+			} else {
+				if( (characterBitmap & (bitmapCheckPattern>>(cx)%currentFont->Width))) {
+					dsp_setPixelToMemory(data,cx,cy);
+				} else {
+					dsp_clearPixelFromMemory(data,cx,cy);
+				}
+			}
+		}
 	}
 }
-
 uint32_t dsp_calculateCharTableOffsetOfChar(uint8_t character) {
 	int32_t offset = character-0x20;
 	if(offset<0) return 0;
 	if(offset>0x5e) return 0x5e;
 	return offset;
 }
-
 void dsp_displayInitWithCommands(void){
 	HAL_Display_RESET(0);
 	osDelay(1);
@@ -189,8 +242,6 @@ void displayTask(void const * argument) {
 
 }
 
-
-
 void dsp_text_InitTextbox( dsp_textbox_t *tb, uint8_t height, uint8_t width, uint8_t x_0_pos, uint8_t y_0_pos, uint8_t font, uint8_t grayscale ) {
 	uint32_t textBoxDataLength;
 	tb->height_px = height;
@@ -203,9 +254,9 @@ void dsp_text_InitTextbox( dsp_textbox_t *tb, uint8_t height, uint8_t width, uin
 	if((tb->height_px*tb->width_px)%8) {
 		textBoxDataLength++;
 	}
+	tb->pixelInverted = 0;
 	tb->textBoxData = malloc(textBoxDataLength);
 }
-
 void dsp_text_DeleteTextbox(dsp_textbox_t *tb) {
 	tb->structTypeX=0;
 	tb->height_px=0;
@@ -221,10 +272,10 @@ void dsp_text_DeleteTextbox(dsp_textbox_t *tb) {
 
 	tb->charFont=0;
 	tb->charGrayscale=0;
+	tb->pixelInverted = 0;
 	free(tb->textBoxData);
 	tb->textBoxData=0;
 }
-
 void dsp_text_setText( dsp_textbox_t *tb, uint8_t *data, uint32_t dataLength) {
 	tb->textData_char = data;
 	if(dataLength == 0) {
@@ -242,10 +293,19 @@ void dsp_text_setText( dsp_textbox_t *tb, uint8_t *data, uint32_t dataLength) {
 	}
 	displayDataChanged=1;
 }
-
 void dsp_setTbPosition(dsp_textbox_t *tb, uint16_t xpos, uint16_t ypos) {
 	tb->x_pos_px = xpos;
 	tb->y_pos_px = ypos;
+}
+void dsp_setTbInversion(dsp_textbox_t *tb, uint8_t enable) {
+	if(enable){
+		tb->pixelInverted = 1;
+	} else {
+		tb->pixelInverted = 0;
+	}
+}
+uint8_t dsp_getTbInversion(dsp_textbox_t *tb) {
+	return tb->pixelInverted = 1;
 }
 void dsp_txt_printTBToMemory(dsp_textbox_t *tb, uint8_t *displayData) {
 	int cx,cy;
@@ -261,7 +321,6 @@ void dsp_txt_printTBToMemory(dsp_textbox_t *tb, uint8_t *displayData) {
 
 
 }
-
 void dsp_fillTextBoxWithText(dsp_textbox_t *tb) {
 	int cy, cx, p_startChr, firstLineYOffset, firstCharXOffset, pcharacterToDisplay, charPerLine;
 	uint8_t characterToDisplay;
@@ -316,7 +375,6 @@ void dsp_fillTextBoxWithText(dsp_textbox_t *tb) {
 		}
 	}
 }
-
 void dsp_setPixelInTextbox(dsp_textbox_t *tb, uint8_t x, uint8_t y){
 
 	uint32_t pos;
@@ -343,9 +401,12 @@ uint8_t dsp_getTextboxPixel(dsp_textbox_t *tb, uint8_t x, uint8_t y){
 		return 0;
 	}
 	pos = x+y*tb->width_px;
-	return tb->textBoxData[pos/8] & (1 << (pos%8));
+	if(tb->pixelInverted) {
+		return !(tb->textBoxData[pos/8] & (1 << (pos%8)));
+	} else {
+		return tb->textBoxData[pos/8] & (1 << (pos%8));
+	}
 }
-
 void dsp_scrollTexboxRelative(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
 	if((int)tb->lineOffset_px + x_px >= 0) {
 		tb->lineOffset_px += x_px;
@@ -355,7 +416,6 @@ void dsp_scrollTexboxRelative(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
 	}
 	displayDataChanged=1;
 }
-
 void dsp_scrollTexboxAbsolute(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
 	if(x_px >= 0) {
 		tb->lineOffset_px = x_px;
