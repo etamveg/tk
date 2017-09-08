@@ -48,12 +48,23 @@
 #ifndef __SD_DISKIO_H
 #define __SD_DISKIO_H
 
+#include "ff_gen_drv.h"
+#include "diskio.h"
 /* Includes ------------------------------------------------------------------*/
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
-extern Diskio_drvTypeDef  SD_Driver;
+extern const Diskio_drvTypeDef  SD_Driver;
 
+DSTATUS SD_initialize (BYTE);
+DSTATUS SD_status (BYTE);
+DRESULT SD_read (BYTE, BYTE*, DWORD, UINT);
+#if _USE_WRITE == 1
+  DRESULT SD_write (BYTE, const BYTE*, DWORD, UINT);
+#endif /* _USE_WRITE == 1 */
+#if _USE_IOCTL == 1
+  DRESULT SD_ioctl (BYTE, BYTE, void*);
+#endif  /* _USE_IOCTL == 1 */
 #endif /* __SD_DISKIO_H */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

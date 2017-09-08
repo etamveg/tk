@@ -25,6 +25,7 @@ char start_page_settings[] 	= "Settings";
 char file_to_open[24];
 uint8_t fileRequestState;
 uint8_t readTextFontSize = 8;
+uint8_t folder_changed = 0;
 
 void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 	dsp_cleanDisplayData(displayData);
@@ -72,6 +73,14 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 		dsp_txt_printTBToMemory(&start_page_c, displayData);
 		dsp_txt_printTBToMemory(&item_select, displayData);
 	} else if(menu == MENU_FILE_SELECT) {
+		if(folder_changed){
+			folder_changed=0;
+			uint8_t request;
+			while(file_refreshDirectoryContent(&request))  osDelay(10);
+			while(request != 1) osDelay(10);
+		}
+
+
 		if(menu_changed) {
 			dsp_text_DeleteTextbox(&start_page_a);
 			dsp_text_DeleteTextbox(&start_page_b);
@@ -251,6 +260,7 @@ void menu_logicStateMachine(menuEvent_t event) {
 				case EVENT_ENTER:
 					{
 						uint8_t line_number = 0;
+						uint8_t request = 0;
 						char *pLine;
 						char *pSpace;
 						pLine = (char*)start_page_b.textData_char;
@@ -265,10 +275,25 @@ void menu_logicStateMachine(menuEvent_t event) {
 						*pSpace = '\0';
 						strcpy(file_to_open, pLine);
 						menu_changed = 1;
-						dsp_text_DeleteTextbox(&start_page_a);
-						dsp_text_DeleteTextbox(&start_page_b);
-						dsp_text_DeleteTextbox(&item_select);
-						state = MENU_READ_TEXT;
+
+						if(pSpace[-1]=='.' &&pSpace[-2]=='.' && pSpace[-3]=='.') {
+							dsp_text_DeleteTextbox(&start_page_a);
+							dsp_text_DeleteTextbox(&start_page_b);
+							dsp_text_DeleteTextbox(&item_select);
+							pSpace[-3]='\0';
+							while(file_enterDirectory(pLine, &request) ) osDelay(10);
+							while(request != 1) osDelay(10);
+//							while(file_refreshDirectoryContent(&request))  osDelay(10);
+//							while(request != 1) osDelay(10);
+							folder_changed = 1;
+
+						} else {
+							dsp_text_DeleteTextbox(&start_page_a);
+							dsp_text_DeleteTextbox(&start_page_b);
+							dsp_text_DeleteTextbox(&item_select);
+							state = MENU_READ_TEXT;
+						}
+
 					}
 					break;
 				case EVENT_NONE:

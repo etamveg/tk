@@ -22,7 +22,7 @@ extern char SD_Path[];/* StartDefaultTask function */
 
 FRESULT res;                                          /* FatFs function common result code */
 uint32_t byteswritten, bytesread;                     /* File write/read counts */
-
+DIR directoryObj;
 uint8_t wtext[] = "This is STM32 working with FatFs"; /* File write buffer */
 uint8_t rtext[1000];
 uint32_t g_file_read_len, g_file_read_off;
@@ -47,12 +47,13 @@ void debug_sendSerial(const char * msg) {
 FRESULT scan_files (
     char* path,       /* Start node to be scanned (also used as work area) */
 	char *dest,
-	uint32_t length
+	uint32_t length,
+	DIR *dir
 )
 {
     FRESULT res;
     FILINFO fno;
-    DIR dir;
+
     int i;
     char *fn;   /* This function assumes non-Unicode configuration */
 #if _USE_LFN
@@ -62,11 +63,11 @@ FRESULT scan_files (
 #endif
 
 
-    res = f_opendir(&dir, path);                       /* Open the directory */
+    res = f_opendir(dir, path);                       /* Open the directory */
     if (res == FR_OK) {
         i = strlen(path);
         for (;;) {
-            res = f_readdir(&dir, &fno);                   /* Read a directory item */
+            res = f_readdir(dir, &fno);                   /* Read a directory item */
             if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
 #if _USE_LFN
             fn = *fno.lfname ? fno.lfname : fno.fname;
@@ -84,7 +85,7 @@ FRESULT scan_files (
             	snprintf(&dest[i], length-i, "%s/%s\n", path, fn);
             }
         }
-        f_closedir(&dir);
+        f_closedir(dir);
     }
 
     return res;
@@ -204,7 +205,7 @@ void fileHandlerTask(void const * argument) {
 	}
 
 	strcpy(currentPath, SD_Path);
-	scan_files(currentPath, directoryContent, FILE_DIR_LIST_BUFFER_LEN);
+	scan_files(currentPath, directoryContent, FILE_DIR_LIST_BUFFER_LEN,&directoryObj);
 	debug_sendSerial(directoryContent);
 
 
@@ -252,7 +253,7 @@ void fileHandlerTask(void const * argument) {
 			currentRequest = 0;
 			break;
 		case GET_DIRECTORY_CONTENT:
-			scan_files(currentPath, directoryContent, FILE_DIR_LIST_BUFFER_LEN);
+			scan_files(currentPath, directoryContent, FILE_DIR_LIST_BUFFER_LEN,&directoryObj);
 			debug_sendSerial("get dir content\r");
 			*requestStatusIndicator = 1;
 			requestStatusIndicator = 0;
@@ -260,6 +261,7 @@ void fileHandlerTask(void const * argument) {
 			break;
 		case OPEN_DIRECTORY:
 			debug_sendSerial("open dir\r");
+			f_opendir(&directoryObj,currentPath);
 			*requestStatusIndicator = 1;
 			requestStatusIndicator = 0;
 			currentRequest = 0;
@@ -277,6 +279,18 @@ void fileHandlerTask(void const * argument) {
 
 }
 
+uint8_t file_enterDirectory(char *dir_name, uint8_t *enterFinished) {
+	if(requestStatusIndicator != NULL) {
+		return 1;
+	}
+	currentRequest = OPEN_DIRECTORY;
+	requestStatusIndicator = enterFinished;
+	*enterFinished = 0;
+	strcpy(currentPath, dir_name);
+	strcat(currentPath, "/");
+	return 0;
+
+}
 void file_getDirectoryContent(char **content, uint32_t *length) {
 	*content = directoryContent;
 	*length = FILE_DIR_LIST_BUFFER_LEN;
