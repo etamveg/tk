@@ -34,22 +34,18 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 			dsp_text_DeleteTextbox(&start_page_a);
 			dsp_text_DeleteTextbox(&start_page_b);
 			dsp_text_DeleteTextbox(&start_page_c);
-			dsp_text_DeleteTextbox(&item_select);
+
 			dsp_text_InitTextbox( &start_page_a, 12, 80,   3, 10, 12, 5 );
 			dsp_text_InitTextbox( &start_page_b, 12, 80,  88, 10, 12, 5 );
 			dsp_text_InitTextbox( &start_page_c, 12, 80, 173, 10, 12, 5 );
-			dsp_text_InitTextbox( &item_select, 12, 80, 3, 22, 12, 5 );
 
 			dsp_text_setText( &start_page_a,(uint8_t*)start_page_file_select, 0);
 			dsp_text_setText( &start_page_b,(uint8_t*)start_page_file_read, 0);
 			dsp_text_setText( &start_page_c,(uint8_t*)start_page_settings, 0);
-			strcpy(item_select_text, "xxxxxxxxxx");
-			dsp_text_setText( &item_select,(uint8_t*)item_select_text, 0);
 
 			dsp_fillTextBoxWithText(&start_page_a);
 			dsp_fillTextBoxWithText(&start_page_b);
 			dsp_fillTextBoxWithText(&start_page_c);
-			dsp_fillTextBoxWithText(&item_select);
 		}
 
 		dsp_setTbInversion(&start_page_a, 0);
@@ -57,13 +53,10 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 		dsp_setTbInversion(&start_page_c, 0);
 
 		if(menu_item_selector == 0 ){
-			dsp_setTbPosition(&item_select,3, 22);
 			dsp_setTbInversion(&start_page_a, 1);
 		} else if(menu_item_selector == 1 ){
-			dsp_setTbPosition(&item_select,88, 22);
 			dsp_setTbInversion(&start_page_b, 1);
 		} else if(menu_item_selector == 2 ){
-			dsp_setTbPosition(&item_select,173, 22);
 			dsp_setTbInversion(&start_page_c, 1);
 		}
 
@@ -74,33 +67,43 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 		dsp_txt_printTBToMemory(&item_select, displayData);
 	} else if(menu == MENU_FILE_SELECT) {
 		if(folder_changed){
-			folder_changed=0;
+
 			uint8_t request;
+			menu_item_selector=0;
 			while(file_refreshDirectoryContent(&request))  osDelay(10);
 			while(request != 1) osDelay(10);
 		}
 
 
-		if(menu_changed) {
+		if(menu_changed || folder_changed) {
 			dsp_text_DeleteTextbox(&start_page_a);
 			dsp_text_DeleteTextbox(&start_page_b);
 			dsp_text_DeleteTextbox(&item_select);
-			dsp_text_InitTextbox( &start_page_a, 32, 72,   0, 0, 8, 5 );
-			dsp_text_InitTextbox( &start_page_b, 32, 120,   80, 0, 8, 5 );
-			dsp_text_InitTextbox( &item_select, 32, 30,  210, 0, 8, 5 );
+			dsp_text_InitTextbox( &start_page_a, 32, 30,   0, 0, 8, 5 );
+			dsp_text_InitTextbox( &start_page_b, 32, 120,   34, 0, 8, 5 );
+			dsp_text_InitTextbox( &item_select, 32, 30,  158, 0, 8, 5 );
 
 			/*Create data*/
 			//path
-			char *ptext;
+			char *ptext, *ppath;
 			uint32_t len;
 			file_getCurrentPath(&ptext);
 			dsp_text_setText( &start_page_a,(uint8_t *)ptext, 0);
-
-
 			file_getDirectoryContent(&ptext, &len);
+			file_getCurrentPath(&ppath);
 			//parse
 			int i=0, j=0, endDetect=0;
 			for(i=0; i<300; i++){
+				textContent[i]=0;
+			}
+			for(i=0; i<300; i++){
+
+				if( strcmp(ppath, "0:/") != 0 &&  i==0) {
+					/*set the first line of list*/
+					strcat(textContent, "..");
+					i=2;
+					endDetect = 1;
+				}
 				if(ptext[j] == '\n') {
 					endDetect=1;
 					j++;
@@ -115,7 +118,7 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 					textContent[i]=ptext[j];
 					j++;
 				}
-				if(j>=len || ptext[j] == '\0') {
+				if(j>=len) {
 					break;
 				}
 			}
@@ -126,6 +129,8 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 
 
 		}
+
+		folder_changed=0;
 
 		if(menu_item_selector>2){
 			start_page_b.lineOffset_px = (menu_item_selector-2) * 8;
@@ -276,18 +281,21 @@ void menu_logicStateMachine(menuEvent_t event) {
 						strcpy(file_to_open, pLine);
 						menu_changed = 1;
 
-						if(pSpace[-1]=='.' &&pSpace[-2]=='.' && pSpace[-3]=='.') {
+						if(file_isThisAFolderName(file_to_open)) {
 							dsp_text_DeleteTextbox(&start_page_a);
 							dsp_text_DeleteTextbox(&start_page_b);
 							dsp_text_DeleteTextbox(&item_select);
 							pSpace[-3]='\0';
 							while(file_enterDirectory(pLine, &request) ) osDelay(10);
 							while(request != 1) osDelay(10);
-//							while(file_refreshDirectoryContent(&request))  osDelay(10);
-//							while(request != 1) osDelay(10);
+							while(file_refreshDirectoryContent(&request))  osDelay(10);
+							while(request != 1) osDelay(10);
 							folder_changed = 1;
 
-						} else {
+						} else if(file_isThisAOneLevelUpString(file_to_open)) {
+							file_goOneLevelUp();
+							folder_changed = 1;
+						}else {
 							dsp_text_DeleteTextbox(&start_page_a);
 							dsp_text_DeleteTextbox(&start_page_b);
 							dsp_text_DeleteTextbox(&item_select);
@@ -305,14 +313,14 @@ void menu_logicStateMachine(menuEvent_t event) {
 		case MENU_READ_TEXT:
 			switch(event){
 				case EVENT_UP:
+					start_page_a.lineOffset_px += 4;
+					break;
+				case EVENT_DOWN:
 					if((int)start_page_a.lineOffset_px - 4 > 0){
 						start_page_a.lineOffset_px -= 4;
 					} else {
 						start_page_a.lineOffset_px = 0;
 					}
-					break;
-				case EVENT_DOWN:
-					start_page_a.lineOffset_px += 4;
 					break;
 				case EVENT_EXIT:
 					menu_changed = 1;

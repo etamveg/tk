@@ -62,10 +62,17 @@ FRESULT scan_files (
     fno.lfsize = sizeof lfn;
 #endif
 
+    if(path[strlen(path) - 1] == '/'){
+    	path[strlen(path) - 1] = 0;
+    }
 
     res = f_opendir(dir, path);                       /* Open the directory */
     if (res == FR_OK) {
-        i = strlen(path);
+    	i=strlen(dest);
+        for(; i>=0;i--){
+        	dest[i]=0;
+        }
+        i = 0;
         for (;;) {
             res = f_readdir(dir, &fno);                   /* Read a directory item */
             if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
@@ -76,17 +83,21 @@ FRESULT scan_files (
 #endif
             if (fno.fname[0] == '.') {
             	i = strlen(dest);
-            	snprintf(&dest[i], length-i, "%s/.\n", path);
+            	snprintf(&dest[i], length-i, ".\n");
             } else if (fno.fattrib & AM_DIR) {                    /* It is a directory */
             	i = strlen(dest);
-            	snprintf(&dest[i], length-i, "%s/%s...\n", path, fn);
+            	snprintf(&dest[i], length-i, "%s/..\n", fn);
             } else {                                       /* It is a file. */
             	i = strlen(dest);
-            	snprintf(&dest[i], length-i, "%s/%s\n", path, fn);
+            	snprintf(&dest[i], length-i, "%s\n", fn);
             }
         }
         f_closedir(dir);
     }
+
+    if(path[strlen(path) - 1] != '/'){
+		path[strlen(path)] = '/';
+	}
 
     return res;
 }
@@ -286,7 +297,7 @@ uint8_t file_enterDirectory(char *dir_name, uint8_t *enterFinished) {
 	currentRequest = OPEN_DIRECTORY;
 	requestStatusIndicator = enterFinished;
 	*enterFinished = 0;
-	strcpy(currentPath, dir_name);
+	strcat(currentPath, dir_name);
 	strcat(currentPath, "/");
 	return 0;
 
@@ -321,7 +332,8 @@ uint8_t file_readTextRequest(uint8_t *fileName, uint32_t offset, uint32_t length
 	g_file_read_len = length;
 	g_file_read_off = offset;
 
-	strcpy((char*)fil_dir_name,(char*)fileName);
+	strcpy((char*)fil_dir_name,(char*)currentPath);
+	strcat((char*)fil_dir_name,(char*)fileName);
 	return 0;
 }
 
@@ -330,4 +342,37 @@ void file_getCurrentPath(char **path) {
 }
 void sd_openDir() {
 	;
+}
+
+uint8_t file_isThisAFolderName(char *name) {
+	uint32_t len = strlen(name);
+	if(name[len-3] == '/' && name[len-2] == '.' && name[len-1] == '.'){
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+uint8_t file_isThisAOneLevelUpString(char *name) {
+	uint32_t len = strlen(name);
+	if(len == 2 && name[0] == '.' && name[1] == '.'){
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+void file_goOneLevelUp( void ) {
+	uint32_t len = strlen(currentPath);
+	int i;
+	if(len == strlen("0:/")) {
+		return;
+	}
+	currentPath[len-1] = 0;
+	for(i=len-1; i>0;i--){
+		if(currentPath[i] == '/') {
+			break;
+		}
+		currentPath[i] = 0;
+	}
 }

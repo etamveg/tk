@@ -30,4 +30,8 @@ uint8_t file_refreshDirectoryContent(uint8_t *refreshFinished);
 void file_getDirectoryContent(char **content, uint32_t *length);
 void file_getCurrentPath(char **path);
 uint8_t file_enterDirectory(char *dir_name, uint8_t *enterFinished);
+uint8_t file_isThisAFolderName(char *name);
+uint8_t file_isThisAOneLevelUpString(char *name);
+void file_goOneLevelUp( void );
+
 #endif /* FILE_HANDLER_H_ */
