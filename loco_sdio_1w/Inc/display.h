@@ -17,6 +17,7 @@
 #define DSP_OBJECT_TEXTBOX	1
 #define DSP_TEXTBOX_MAX_TEXT_LENGTH 1024
 #include <stdint.h>
+#include "fonts.h"
 extern uint8_t displayData[];
 
 
@@ -61,4 +62,6 @@ void dsp_text_DeleteTextbox(dsp_textbox_t *tb);
 void dsp_setTbPosition(dsp_textbox_t *tb, uint16_t xpos, uint16_t ypos);
 uint8_t dsp_getTbInversion(dsp_textbox_t *tb);
 void dsp_setTbInversion(dsp_textbox_t *tb, uint8_t enable);
+sFONT *dsp_getFontDescriptor(uint8_t size);
+uint32_t dsp_getTextboxWidthInChar(dsp_textbox_t *tb);
 #endif /* DISPLAY_H_ */

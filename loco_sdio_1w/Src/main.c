@@ -222,7 +222,7 @@ int main(void)
 
   /* USER CODE END 2 */
 
-  osThreadDef(uSD, fileHandlerTask, osPriorityNormal, 0, 500);
+  osThreadDef(uSD, fileHandlerTask, osPriorityHigh, 0, 500);
   debugTaskHandle = osThreadCreate(osThread(uSD), NULL);
 
   osThreadDef(button, buttonReadTask, osPriorityNormal, 0, 200);

@@ -59,9 +59,15 @@ void buttonReadTask(void const * argument) {
 			button1.buttonStateTime = 0;
 		} else if(button1.buttonState == BUTTON_PRESSED ) {
 			if(button1.buttonStateTime > BUTTON_LONG_PRESS_TIME) {
-				button_eventNotify(BUTTON_1, EVENT_LONG_PRESS, button1.buttonStateTime);
-				button1.buttonState = BUTTON_PRESSED_LONG_PRESS_EVENT_SENT;
+				if(button2.buttonState != BUTTON_PRESSED) {
+					button_eventNotify(BUTTON_1, EVENT_LONG_PRESS, button1.buttonStateTime);
+					button1.buttonState = BUTTON_PRESSED_LONG_PRESS_EVENT_SENT;
+				} else {
+					button_eventNotify(BUTTON_1, EVENT_DOUBLE_LONG_PRESS, button1.buttonStateTime);
+					button1.buttonState = BUTTON_PRESSED_LONG_PRESS_EVENT_SENT;
+				}
 			}
+
 		}
 
 		if(button2.buttonState == BUTTON_JUST_RELEASED ) {
@@ -78,8 +84,13 @@ void buttonReadTask(void const * argument) {
 			button2.buttonStateTime = 0;
 		} else if(button2.buttonState == BUTTON_PRESSED ) {
 			if(button2.buttonStateTime > BUTTON_LONG_PRESS_TIME) {
-				button_eventNotify(BUTTON_2, EVENT_LONG_PRESS, button2.buttonStateTime);
-				button2.buttonState = BUTTON_PRESSED_LONG_PRESS_EVENT_SENT;
+				if(button1.buttonState != BUTTON_PRESSED) {
+					button_eventNotify(BUTTON_2, EVENT_LONG_PRESS, button2.buttonStateTime);
+					button2.buttonState = BUTTON_PRESSED_LONG_PRESS_EVENT_SENT;
+				} else {
+					button_eventNotify(BUTTON_2, EVENT_DOUBLE_LONG_PRESS, button2.buttonStateTime);
+					button2.buttonState = BUTTON_PRESSED_LONG_PRESS_EVENT_SENT;
+				}
 			}
 		}
 

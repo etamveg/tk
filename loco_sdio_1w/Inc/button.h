@@ -38,6 +38,7 @@ typedef struct buttonEventHandlers_s {
 #define EVENT_IDLE				0
 #define EVENT_LONG_PRESS		1
 #define EVENT_RELEASE			2
+#define EVENT_DOUBLE_LONG_PRESS	3
 
 void buttonReadTask(void const * argument);
 void button_addEventHandler(uint8_t button_id, uint8_t event, eventHandler_t eventHandler );

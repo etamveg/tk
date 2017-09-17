@@ -25,6 +25,7 @@ uint32_t byteswritten, bytesread;                     /* File write/read counts 
 DIR directoryObj;
 uint8_t wtext[] = "This is STM32 working with FatFs"; /* File write buffer */
 uint8_t rtext[1000];
+uint32_t g_file_read_finished_byte_number = 0;
 uint32_t g_file_read_len, g_file_read_off;
 
 char fil_dir_name[30];
@@ -35,6 +36,7 @@ uint8_t currentRequest = 0;
 uint8_t *requestStatusIndicator;
 
 void debug_sendSerial(const char * msg) {
+	return;
 	int i;
 	for(i=0; i<100; i++){
 		if(msg[i] == '\0'){
@@ -177,15 +179,12 @@ void fileHandlerTask(void const * argument) {
 			/*##-8- Read data from the text file ###########################*/
 			res = f_read(&MyFile, rtext, sizeof(rtext), (void *)&bytesread);
 
-			if((bytesread == 0) || (res != FR_OK))
+			if(res != FR_OK)
 			{
-				if(bytesread == 0) {
-					debug_sendSerial("0 bytes read back error\r");
-					   osDelay(100);
-				} else {
-					debug_sendSerial("fread result not ok\r");
-					   osDelay(100);
-				}
+
+				debug_sendSerial("fread result not ok\r");
+				osDelay(100);
+
 
 				/* 'STM32.TXT' file Read or EOF Error */
 				Error_Handler();
@@ -231,7 +230,7 @@ void fileHandlerTask(void const * argument) {
 				debug_sendSerial(fil_dir_name);
 				osDelay(10);
 				debug_sendSerial(" - open file not ok\r");
-				return;
+
 			} else {
 				debug_sendSerial(fil_dir_name);
 				osDelay(10);
@@ -244,11 +243,12 @@ void fileHandlerTask(void const * argument) {
 				debug_sendSerial(fil_dir_name);
 				osDelay(10);
 				debug_sendSerial(" - read from file not ok\r");
-				return;
+
 			} else {
 				debug_sendSerial(fil_dir_name);
 				osDelay(10);
 				debug_sendSerial(" - file read ok\r");
+				g_file_read_finished_byte_number = bytesread;
 			}
 
 			f_close(&MyFile);
@@ -319,7 +319,7 @@ uint8_t file_refreshDirectoryContent(uint8_t *refreshFinished) {
 
 void file_getFileContent(char **buffer, uint32_t *len) {
 	*buffer = (char *)rtext;
-	*len = g_file_read_len;
+	*len = g_file_read_finished_byte_number;
 }
 uint8_t file_readTextRequest(uint8_t *fileName, uint32_t offset, uint32_t length, uint8_t *readFinished) {
 	if(requestStatusIndicator != NULL) {

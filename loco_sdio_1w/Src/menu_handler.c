@@ -12,11 +12,13 @@
 #include "file_handler.h"
 #include "cmsis_os.h"
 
+#define MENU_TEXT_BUFFER_SIZE 1000
+
 uint8_t menu_item_selector = 0;
 
 dsp_textbox_t item_select;
 char item_select_text[10];
-char textContent[300];
+char textContent[MENU_TEXT_BUFFER_SIZE];
 
 dsp_textbox_t start_page_a, start_page_b, start_page_c;
 char start_page_file_select[] = "File select";
@@ -26,7 +28,8 @@ char file_to_open[24];
 uint8_t fileRequestState;
 uint8_t readTextFontSize = 8;
 uint8_t folder_changed = 0;
-
+uint32_t fileTextReadOffset_char = 0;
+uint32_t displayTextReadOffset_px = 116;
 void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 	dsp_cleanDisplayData(displayData);
 	if(menu == MENU_START_PAGE) {
@@ -159,14 +162,137 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 			char *ptext;
 			dsp_text_InitTextbox( &start_page_a, 32, 250,   0, 0, readTextFontSize, 5 );
 			if(strlen(file_to_open) > 1) {
-				while(file_readTextRequest((uint8_t*)file_to_open, 0, 300,&fileRequestState))  osDelay(100);
+				while(file_readTextRequest((uint8_t*)file_to_open, 0, MENU_TEXT_BUFFER_SIZE,&fileRequestState))  osDelay(100);
 				while(fileRequestState != 1) osDelay(100);
 				file_getFileContent(&ptext, &len);
-				dsp_text_setText( &start_page_a,(uint8_t*)ptext, 0);
+				for(int i=0; i<len; i++) {
+					textContent[i] = ptext[i];
+				}
+				dsp_text_setText( &start_page_a,(uint8_t*)textContent, 0);
 			} else {
 				dsp_text_setText( &start_page_a,(uint8_t*)"Please select a file to open!", 0);
 			}
 		}
+
+		uint32_t displayTextReadOffset_char = displayTextReadOffset_px/start_page_a.charFont * dsp_getTextboxWidthInChar(&start_page_a);
+		uint32_t displayTextDisplayedTextLen = dsp_getTextboxWidthInChar(&start_page_a)*(start_page_a.height_px/start_page_a.charFont);
+
+		uint32_t displayTextSpareCharacterNumAtEnd = dsp_getTextboxWidthInChar(&start_page_a);
+		uint32_t displayTextSpareCharacterNumAtBeginning = dsp_getTextboxWidthInChar(&start_page_a)*2;
+
+		if(displayTextReadOffset_char + displayTextDisplayedTextLen + displayTextSpareCharacterNumAtEnd >= MENU_TEXT_BUFFER_SIZE ) {
+			// if the last displayed chacter distance from the last buffered character is less then one line
+			// then buffer the file
+			//first copy the displayed text to the beginning of the buffer
+			int i, j=0;
+			for(i=displayTextReadOffset_char-displayTextSpareCharacterNumAtBeginning; i<MENU_TEXT_BUFFER_SIZE; i++) {
+				textContent[j++] = textContent[i];
+			}
+
+			//set the remaining data to 0
+			for(i=j;i<MENU_TEXT_BUFFER_SIZE;i++){
+				textContent[i] = 0;
+			}
+
+
+			// read file from offset
+			char *ptext;
+			uint32_t len=0;
+
+			if(strlen(file_to_open) > 1) {
+				if(fileTextReadOffset_char == 0) {
+					fileTextReadOffset_char += displayTextReadOffset_char;
+				} else {
+					fileTextReadOffset_char += displayTextReadOffset_char - displayTextSpareCharacterNumAtBeginning;
+				}
+				displayTextReadOffset_px = start_page_a.charFont*displayTextSpareCharacterNumAtBeginning/
+						dsp_getTextboxWidthInChar(&start_page_a);
+				while(file_readTextRequest((uint8_t*)file_to_open,
+						fileTextReadOffset_char + displayTextDisplayedTextLen + displayTextSpareCharacterNumAtEnd,
+						MENU_TEXT_BUFFER_SIZE-j,&fileRequestState))  osDelay(1000);
+				while(fileRequestState != 1) osDelay(500);
+				file_getFileContent(&ptext, &len);
+				for(i=0;i<len;i++){
+					textContent[i+j] = ptext[i];
+				}
+				j+=len;
+				for(i=j;i<MENU_TEXT_BUFFER_SIZE;i++){
+					textContent[i] = 0;
+				}
+				dsp_text_setText( &start_page_a,(uint8_t*)textContent, 0);
+			} else {
+				dsp_text_setText( &start_page_a,(uint8_t*)"Please select a file to open!", 0);
+			}
+
+		}
+
+		displayTextSpareCharacterNumAtEnd = dsp_getTextboxWidthInChar(&start_page_a)*2;
+		displayTextSpareCharacterNumAtBeginning = dsp_getTextboxWidthInChar(&start_page_a);
+
+		if((int)displayTextReadOffset_char - displayTextSpareCharacterNumAtBeginning <= 0 && fileTextReadOffset_char > 0 ) {
+			// if the first displayed chacter distance from the first buffered character is less then one line
+			// then buffer the file
+			// first copy the displayed text to the end of the buffer
+			int i, j=0;
+			for(i=0; i<displayTextSpareCharacterNumAtBeginning + displayTextDisplayedTextLen + displayTextSpareCharacterNumAtEnd; i++) {
+				textContent[MENU_TEXT_BUFFER_SIZE -
+							(displayTextSpareCharacterNumAtBeginning +
+									displayTextDisplayedTextLen +
+									displayTextSpareCharacterNumAtEnd) + i ] = textContent[i];
+			}
+
+			//set the remaining data to 0
+			for(i=0 ;i<MENU_TEXT_BUFFER_SIZE-
+							(displayTextSpareCharacterNumAtBeginning +
+								displayTextDisplayedTextLen +
+								displayTextSpareCharacterNumAtEnd);i++){
+				textContent[i] = 0;
+			}
+
+
+			// read file from offset
+			char *ptext;
+			uint32_t len=0;
+
+			if(strlen(file_to_open) > 1) {
+				if(fileTextReadOffset_char == 0) {
+					//we are at the start of the file
+				} else {
+					if(fileTextReadOffset_char > MENU_TEXT_BUFFER_SIZE-
+							(displayTextSpareCharacterNumAtBeginning +
+								displayTextDisplayedTextLen +
+								displayTextSpareCharacterNumAtEnd)){
+						fileTextReadOffset_char -= MENU_TEXT_BUFFER_SIZE-
+								(displayTextSpareCharacterNumAtBeginning +
+									displayTextDisplayedTextLen +
+									displayTextSpareCharacterNumAtEnd);
+					} else {
+						fileTextReadOffset_char = 0;
+						//todo : the text is at the end of the buffer and the buffered text will be at the beginning
+					}
+				}
+				displayTextReadOffset_px = start_page_a.charFont*(MENU_TEXT_BUFFER_SIZE-
+																	(displayTextSpareCharacterNumAtBeginning +
+																		displayTextDisplayedTextLen +
+																		displayTextSpareCharacterNumAtEnd))/
+						dsp_getTextboxWidthInChar(&start_page_a);
+				while(file_readTextRequest((uint8_t*)file_to_open,
+						fileTextReadOffset_char - 100,
+						MENU_TEXT_BUFFER_SIZE-(displayTextSpareCharacterNumAtBeginning +
+								displayTextDisplayedTextLen +
+								displayTextSpareCharacterNumAtEnd),&fileRequestState))  osDelay(1000);
+				while(fileRequestState != 1) osDelay(500);
+				file_getFileContent(&ptext, &len);
+				for(i=0;i<len;i++){
+					textContent[i] = ptext[i];
+				}
+				dsp_text_setText( &start_page_a,(uint8_t*)textContent, 0);
+			} else {
+				dsp_text_setText( &start_page_a,(uint8_t*)"Please select a file to open!", 0);
+			}
+
+		}
+		start_page_a.lineOffset_px = displayTextReadOffset_px;
 		dsp_fillTextBoxWithText(&start_page_a);
 		dsp_txt_printTBToMemory(&start_page_a, displayData);
 	} else if(menu == MENU_SETTINGS) {
@@ -313,13 +439,13 @@ void menu_logicStateMachine(menuEvent_t event) {
 		case MENU_READ_TEXT:
 			switch(event){
 				case EVENT_UP:
-					start_page_a.lineOffset_px += 4;
+					displayTextReadOffset_px += 4;
 					break;
 				case EVENT_DOWN:
-					if((int)start_page_a.lineOffset_px - 4 > 0){
-						start_page_a.lineOffset_px -= 4;
+					if((int)displayTextReadOffset_px - 4 > 0){
+						displayTextReadOffset_px -= 4;
 					} else {
-						start_page_a.lineOffset_px = 0;
+						displayTextReadOffset_px = 0;
 					}
 					break;
 				case EVENT_EXIT:
@@ -365,6 +491,7 @@ void menu_logicStateMachine(menuEvent_t event) {
 
 
 }
+
 
 void menu_upEvent(uint32_t duration) {
 	menu_logicStateMachine(EVENT_UP);

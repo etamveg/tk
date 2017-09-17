@@ -425,3 +425,8 @@ void dsp_scrollTexboxAbsolute(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
 	}
 	displayDataChanged=1;
 }
+
+uint32_t dsp_getTextboxWidthInChar(dsp_textbox_t *tb) {
+	sFONT *font = dsp_getFontDescriptor(tb->charFont);
+	return tb->width_px/font->Width;
+}
