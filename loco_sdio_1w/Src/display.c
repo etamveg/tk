@@ -235,7 +235,7 @@ void displayTask(void const * argument) {
 			dsp_writeDataToDisplay(displayData, displayGrayscale);
 		}
 
-		osDelay(10);
+		osDelay(1);
 		i++;
 
 	}
@@ -425,8 +425,127 @@ void dsp_scrollTexboxAbsolute(dsp_textbox_t *tb, int32_t x_px, int32_t y_px) {
 	}
 	displayDataChanged=1;
 }
-
 uint32_t dsp_getTextboxWidthInChar(dsp_textbox_t *tb) {
 	sFONT *font = dsp_getFontDescriptor(tb->charFont);
 	return tb->width_px/font->Width;
 }
+
+void dsp_sb_initScrollBar(dsp_scroll_bar_t *sb, uint8_t height, uint8_t width, uint8_t x_0_pos, uint8_t y_0_pos, float bar_pos, float bar_size, uint8_t inverted){
+	uint32_t dataBufferSize;
+	sb->height_px = height;
+	sb->width_px = width;
+	sb->x_pos_px = x_0_pos;
+	sb->y_pos_px = y_0_pos;
+	sb->pixelInverted = inverted;
+	if(bar_pos<=1.0 && bar_pos>=0) {
+		sb->scrollPadRelativePosition = bar_pos;
+	} else {
+		sb->scrollPadRelativePosition = 0;
+	}
+	if(bar_size<=1.0 && bar_size>=0){
+		sb->scrollPadRelativeSize = bar_size;
+	} else {
+		sb->scrollPadRelativeSize = 0.1;
+	}
+	dataBufferSize = sb->width_px * sb->width_px / 8;
+	if((sb->width_px * sb->width_px)%8) {
+		dataBufferSize++;
+	}
+	sb->scrollBarDspData = malloc( dataBufferSize );
+}
+void dsp_sb_deleteScrollBar(dsp_scroll_bar_t *sb) {
+	sb->height_px = 0;
+	sb->width_px = 0;
+	sb->x_pos_px = 0;
+	sb->y_pos_px = 0;
+	sb->scrollPadRelativePosition = 0;
+	sb->scrollPadRelativeSize = 0;
+	free(sb->scrollBarDspData);
+}
+void dsp_sb_setBarSize(dsp_scroll_bar_t *sb, float size) {
+	if(size<=1.0 && size>=0){
+		sb->scrollPadRelativeSize = size;
+	} else {
+		sb->scrollPadRelativeSize = 0.1;
+	}
+}
+void dsp_sb_setBarPosition(dsp_scroll_bar_t *sb, float pos) {
+	if(pos<=1.0 && pos>=0) {
+		sb->scrollPadRelativePosition = pos;
+	} else {
+		sb->scrollPadRelativePosition = 0;
+	}
+}
+void dsp_sb_setPixelInvert(dsp_scroll_bar_t *sb, uint8_t enable){
+	sb->pixelInverted = enable;
+}
+void dsp_sb_setPixel(dsp_scroll_bar_t *sb, uint8_t x, uint8_t y){
+
+	uint32_t pos;
+	if(x>=sb->width_px || y>=sb->height_px) {
+		return;
+	}
+	pos = x+y*sb->width_px;
+	sb->scrollBarDspData[pos/8] |= (1 << (pos%8));
+
+}
+void dsp_sb_clearPixel(dsp_scroll_bar_t *sb, uint8_t x, uint8_t y){
+
+	uint32_t pos;
+	if(x>=sb->width_px || y>=sb->height_px) {
+		return;
+	}
+	pos = x+y*sb->width_px;
+	sb->scrollBarDspData[pos/8] &= ~(1 << (pos%8));
+
+}
+uint8_t dsp_sb_getScrollBarImagePixel(dsp_scroll_bar_t *sb, uint8_t x, uint8_t y) {
+	uint32_t pos;
+	if(x>=sb->width_px || y>=sb->height_px) {
+		return 0;
+	}
+	pos = x+y*sb->width_px;
+	if(sb->pixelInverted) {
+		return !(sb->scrollBarDspData[pos/8] & (1 << (pos%8)));
+	} else {
+		return sb->scrollBarDspData[pos/8] & (1 << (pos%8));
+	}
+}
+void dsp_sb_calculateDisplayImage( dsp_scroll_bar_t *sb ) {
+	uint32_t bar_length = 0;
+	uint32_t bar_position = 0;
+	bar_length = sb->width_px * sb->scrollPadRelativeSize;
+	if(bar_length < 2) {
+		bar_length = 2;
+	}
+	bar_position = sb->width_px * sb->scrollPadRelativePosition;
+	if(bar_position > sb->width_px-bar_length){
+		bar_position = sb->width_px-bar_length;
+	}
+	int y, x;
+
+	for(y=0;y<sb->height_px;y++) {
+		for(x=0; x<sb->width_px;x++){
+			if(x<bar_position || x>bar_position+bar_length) {
+				dsp_sb_clearPixel(sb, x, y);
+			} else {
+				dsp_sb_setPixel(sb, x, y);
+			}
+		}
+	}
+}
+void dsp_sb_printScrollbarToDisplayData( dsp_scroll_bar_t *sb, uint8_t *displayData ) {
+	int cx,cy;
+	dsp_sb_calculateDisplayImage(sb);
+	for(cy=0; cy<sb->height_px ; cy++){
+		for(cx=0; cx<sb->width_px; cx++){
+			if(dsp_sb_getScrollBarImagePixel(sb, cx, cy)) {
+				dsp_setPixelToMemory(displayData,sb->x_pos_px+cx,sb->y_pos_px+cy);
+			} else {
+				dsp_clearPixelFromMemory(displayData,sb->x_pos_px+cx,sb->y_pos_px+cy);
+			}
+		}
+	}
+}
+
+

@@ -25,6 +25,7 @@ uint32_t byteswritten, bytesread;                     /* File write/read counts 
 DIR directoryObj;
 uint8_t wtext[] = "This is STM32 working with FatFs"; /* File write buffer */
 uint8_t rtext[1000];
+int32_t readTextDeleteTimeout=0;
 uint32_t g_file_read_finished_byte_number = 0;
 uint32_t g_file_read_len, g_file_read_off;
 
@@ -255,6 +256,7 @@ void fileHandlerTask(void const * argument) {
 			*requestStatusIndicator = 1;
 			requestStatusIndicator = 0;
 			currentRequest = 0;
+			readTextDeleteTimeout = 1000;
 			break;
 		case WRITE_DATA_TO_FILE:
 			debug_sendSerial("write file\r");
@@ -285,7 +287,15 @@ void fileHandlerTask(void const * argument) {
 			break;
 		}
 
-		osDelay(100);
+		osDelay(5);
+		if(readTextDeleteTimeout>0) readTextDeleteTimeout -= 5;
+		if(readTextDeleteTimeout == 0) {
+			int i;
+			for(i=0; i<1000; i++) {
+				rtext[i] = 0;
+			}
+			readTextDeleteTimeout = -1;
+		}
 	}
 
 }
@@ -343,7 +353,9 @@ void file_getCurrentPath(char **path) {
 void sd_openDir() {
 	;
 }
-
+uint32_t file_getCurrentFileSize(void) {
+	return f_size(&MyFile);
+}
 uint8_t file_isThisAFolderName(char *name) {
 	uint32_t len = strlen(name);
 	if(name[len-3] == '/' && name[len-2] == '.' && name[len-1] == '.'){

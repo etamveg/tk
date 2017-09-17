@@ -19,7 +19,7 @@ uint8_t menu_item_selector = 0;
 dsp_textbox_t item_select;
 char item_select_text[10];
 char textContent[MENU_TEXT_BUFFER_SIZE];
-
+dsp_scroll_bar_t scroll;
 dsp_textbox_t start_page_a, start_page_b, start_page_c;
 char start_page_file_select[] = "File select";
 char start_page_file_read[] 	= "File read";
@@ -28,8 +28,12 @@ char file_to_open[24];
 uint8_t fileRequestState;
 uint8_t readTextFontSize = 8;
 uint8_t folder_changed = 0;
+uint8_t file_changed = 0;
+uint8_t settings_changed = 0;
+uint8_t menu_textReadFileEndReached = 0;
 uint32_t fileTextReadOffset_char = 0;
 uint32_t displayTextReadOffset_px = 116;
+
 void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 	dsp_cleanDisplayData(displayData);
 	if(menu == MENU_START_PAGE) {
@@ -37,10 +41,12 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 			dsp_text_DeleteTextbox(&start_page_a);
 			dsp_text_DeleteTextbox(&start_page_b);
 			dsp_text_DeleteTextbox(&start_page_c);
+			dsp_sb_deleteScrollBar(&scroll);
 
 			dsp_text_InitTextbox( &start_page_a, 12, 80,   3, 10, 12, 5 );
 			dsp_text_InitTextbox( &start_page_b, 12, 80,  88, 10, 12, 5 );
 			dsp_text_InitTextbox( &start_page_c, 12, 80, 173, 10, 12, 5 );
+			dsp_sb_initScrollBar( &scroll, 3, 250, 3, 29, 0, 0.3, 0);
 
 			dsp_text_setText( &start_page_a,(uint8_t*)start_page_file_select, 0);
 			dsp_text_setText( &start_page_b,(uint8_t*)start_page_file_read, 0);
@@ -54,20 +60,24 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 		dsp_setTbInversion(&start_page_a, 0);
 		dsp_setTbInversion(&start_page_b, 0);
 		dsp_setTbInversion(&start_page_c, 0);
+		dsp_sb_setPixelInvert(&scroll, 0);
 
 		if(menu_item_selector == 0 ){
 			dsp_setTbInversion(&start_page_a, 1);
+			dsp_sb_setBarPosition(&scroll, 0.0);
 		} else if(menu_item_selector == 1 ){
 			dsp_setTbInversion(&start_page_b, 1);
+			dsp_sb_setBarPosition(&scroll, 0.33);
 		} else if(menu_item_selector == 2 ){
 			dsp_setTbInversion(&start_page_c, 1);
+			dsp_sb_setBarPosition(&scroll, 0.66);
 		}
 
 
 		dsp_txt_printTBToMemory(&start_page_a, displayData);
 		dsp_txt_printTBToMemory(&start_page_b, displayData);
 		dsp_txt_printTBToMemory(&start_page_c, displayData);
-		dsp_txt_printTBToMemory(&item_select, displayData);
+		dsp_sb_printScrollbarToDisplayData( &scroll, displayData );
 	} else if(menu == MENU_FILE_SELECT) {
 		if(folder_changed){
 
@@ -156,11 +166,15 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 		dsp_txt_printTBToMemory(&start_page_b, displayData);
 		dsp_txt_printTBToMemory(&item_select, displayData);
 	} else if(menu == MENU_READ_TEXT) {
+
+
 		if(menu_changed) {
 			dsp_text_DeleteTextbox(&start_page_a);
+			dsp_sb_deleteScrollBar(&scroll);
 			uint32_t len;
 			char *ptext;
-			dsp_text_InitTextbox( &start_page_a, 32, 250,   0, 0, readTextFontSize, 5 );
+
+
 			if(strlen(file_to_open) > 1) {
 				while(file_readTextRequest((uint8_t*)file_to_open, 0, MENU_TEXT_BUFFER_SIZE,&fileRequestState))  osDelay(100);
 				while(fileRequestState != 1) osDelay(100);
@@ -172,6 +186,15 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 			} else {
 				dsp_text_setText( &start_page_a,(uint8_t*)"Please select a file to open!", 0);
 			}
+
+			dsp_text_InitTextbox( &start_page_a, 30, 250,   0, 0, readTextFontSize, 5 );
+			dsp_sb_initScrollBar( &scroll, 2, 250, 3, 30, 0, (float)200/file_getCurrentFileSize(), 0);
+		}
+
+		if(file_changed) {
+			file_changed = 0;
+			displayTextReadOffset_px = 0;
+			fileTextReadOffset_char = 0;
 		}
 
 		uint32_t displayTextReadOffset_char = displayTextReadOffset_px/start_page_a.charFont * dsp_getTextboxWidthInChar(&start_page_a);
@@ -180,7 +203,8 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 		uint32_t displayTextSpareCharacterNumAtEnd = dsp_getTextboxWidthInChar(&start_page_a);
 		uint32_t displayTextSpareCharacterNumAtBeginning = dsp_getTextboxWidthInChar(&start_page_a)*2;
 
-		if(displayTextReadOffset_char + displayTextDisplayedTextLen + displayTextSpareCharacterNumAtEnd >= MENU_TEXT_BUFFER_SIZE ) {
+		if(displayTextReadOffset_char + displayTextDisplayedTextLen + displayTextSpareCharacterNumAtEnd >= MENU_TEXT_BUFFER_SIZE &&
+				!menu_textReadFileEndReached) {
 			// if the last displayed chacter distance from the last buffered character is less then one line
 			// then buffer the file
 			//first copy the displayed text to the beginning of the buffer
@@ -201,17 +225,20 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 
 			if(strlen(file_to_open) > 1) {
 				if(fileTextReadOffset_char == 0) {
-					fileTextReadOffset_char += displayTextReadOffset_char;
+					fileTextReadOffset_char += displayTextReadOffset_char - displayTextSpareCharacterNumAtBeginning;
 				} else {
 					fileTextReadOffset_char += displayTextReadOffset_char - displayTextSpareCharacterNumAtBeginning;
 				}
 				displayTextReadOffset_px = start_page_a.charFont*displayTextSpareCharacterNumAtBeginning/
 						dsp_getTextboxWidthInChar(&start_page_a);
 				while(file_readTextRequest((uint8_t*)file_to_open,
-						fileTextReadOffset_char + displayTextDisplayedTextLen + displayTextSpareCharacterNumAtEnd,
-						MENU_TEXT_BUFFER_SIZE-j,&fileRequestState))  osDelay(1000);
-				while(fileRequestState != 1) osDelay(500);
+						fileTextReadOffset_char + displayTextDisplayedTextLen + displayTextSpareCharacterNumAtEnd + displayTextSpareCharacterNumAtBeginning,
+						MENU_TEXT_BUFFER_SIZE-j,&fileRequestState))  osDelay(100);
+				while(fileRequestState != 1) osDelay(5);
 				file_getFileContent(&ptext, &len);
+				if(len < MENU_TEXT_BUFFER_SIZE-j) {
+					menu_textReadFileEndReached = 1;
+				}
 				for(i=0;i<len;i++){
 					textContent[i+j] = ptext[i];
 				}
@@ -258,12 +285,12 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 				if(fileTextReadOffset_char == 0) {
 					//we are at the start of the file
 				} else {
-					if(fileTextReadOffset_char > MENU_TEXT_BUFFER_SIZE-
-							(displayTextSpareCharacterNumAtBeginning +
+					if(fileTextReadOffset_char >= MENU_TEXT_BUFFER_SIZE-
+							(	displayTextSpareCharacterNumAtBeginning +
 								displayTextDisplayedTextLen +
 								displayTextSpareCharacterNumAtEnd)){
 						fileTextReadOffset_char -= MENU_TEXT_BUFFER_SIZE-
-								(displayTextSpareCharacterNumAtBeginning +
+								(	displayTextSpareCharacterNumAtBeginning +
 									displayTextDisplayedTextLen +
 									displayTextSpareCharacterNumAtEnd);
 					} else {
@@ -271,18 +298,20 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 						//todo : the text is at the end of the buffer and the buffered text will be at the beginning
 					}
 				}
-				displayTextReadOffset_px = start_page_a.charFont*(MENU_TEXT_BUFFER_SIZE-
-																	(displayTextSpareCharacterNumAtBeginning +
-																		displayTextDisplayedTextLen +
-																		displayTextSpareCharacterNumAtEnd))/
-						dsp_getTextboxWidthInChar(&start_page_a);
+				displayTextReadOffset_px = start_page_a.charFont*(MENU_TEXT_BUFFER_SIZE-displayTextDisplayedTextLen-displayTextSpareCharacterNumAtEnd)/
+																		dsp_getTextboxWidthInChar(&start_page_a);
 				while(file_readTextRequest((uint8_t*)file_to_open,
-						fileTextReadOffset_char - 100,
-						MENU_TEXT_BUFFER_SIZE-(displayTextSpareCharacterNumAtBeginning +
-								displayTextDisplayedTextLen +
-								displayTextSpareCharacterNumAtEnd),&fileRequestState))  osDelay(1000);
-				while(fileRequestState != 1) osDelay(500);
+											fileTextReadOffset_char,
+											MENU_TEXT_BUFFER_SIZE-( displayTextSpareCharacterNumAtBeginning +
+																	displayTextDisplayedTextLen +
+																	displayTextSpareCharacterNumAtEnd),
+											&fileRequestState))  osDelay(100);
+				while(fileRequestState != 1) osDelay(5);
 				file_getFileContent(&ptext, &len);
+				if(len == MENU_TEXT_BUFFER_SIZE-( displayTextSpareCharacterNumAtBeginning +
+						displayTextDisplayedTextLen + displayTextSpareCharacterNumAtEnd)) {
+					menu_textReadFileEndReached = 0;
+				}
 				for(i=0;i<len;i++){
 					textContent[i] = ptext[i];
 				}
@@ -292,9 +321,11 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 			}
 
 		}
+		dsp_sb_setBarPosition(&scroll, (float)(displayTextReadOffset_char+fileTextReadOffset_char)/file_getCurrentFileSize());
 		start_page_a.lineOffset_px = displayTextReadOffset_px;
 		dsp_fillTextBoxWithText(&start_page_a);
 		dsp_txt_printTBToMemory(&start_page_a, displayData);
+		dsp_sb_printScrollbarToDisplayData( &scroll, displayData );
 	} else if(menu == MENU_SETTINGS) {
 		if(menu_changed) {
 			dsp_text_DeleteTextbox(&item_select);
@@ -425,6 +456,7 @@ void menu_logicStateMachine(menuEvent_t event) {
 							dsp_text_DeleteTextbox(&start_page_a);
 							dsp_text_DeleteTextbox(&start_page_b);
 							dsp_text_DeleteTextbox(&item_select);
+							file_changed = 1;
 							state = MENU_READ_TEXT;
 						}
 

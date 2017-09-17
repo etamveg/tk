@@ -43,6 +43,17 @@ typedef struct dsp_textbox_s {
 
 } dsp_textbox_t;
 
+typedef struct dsp_scroll_bar_s{
+	uint8_t *scrollBarDspData;
+	uint8_t height_px;
+	uint8_t width_px;
+	uint8_t x_pos_px;
+	uint8_t y_pos_px;
+	uint8_t pixelInverted;
+	float scrollPadRelativeSize; //%
+	float scrollPadRelativePosition; //%
+} dsp_scroll_bar_t;
+
 extern dsp_textbox_t g_textbox_list[];
 
 void displayTask(void const * argument);
@@ -64,4 +75,15 @@ uint8_t dsp_getTbInversion(dsp_textbox_t *tb);
 void dsp_setTbInversion(dsp_textbox_t *tb, uint8_t enable);
 sFONT *dsp_getFontDescriptor(uint8_t size);
 uint32_t dsp_getTextboxWidthInChar(dsp_textbox_t *tb);
+
+/*Scroll Bar*/
+void dsp_sb_initScrollBar(dsp_scroll_bar_t *sb, uint8_t height, uint8_t width, uint8_t x_0_pos, uint8_t y_0_pos, float bar_pos, float bar_size, uint8_t inverted);
+void dsp_sb_deleteScrollBar(dsp_scroll_bar_t *sb);
+void dsp_sb_setBarSize(dsp_scroll_bar_t *sb, float size);
+void dsp_sb_setBarPosition(dsp_scroll_bar_t *sb, float pos);
+void dsp_sb_setPixelInvert(dsp_scroll_bar_t *sb, uint8_t enable);
+void dsp_sb_printScrollbarToDisplayData( dsp_scroll_bar_t *sb, uint8_t *displayData );
+/*END Scroll Bar*/
+
+
 #endif /* DISPLAY_H_ */
