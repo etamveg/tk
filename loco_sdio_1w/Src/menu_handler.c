@@ -321,6 +321,7 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 			}
 
 		}
+		displayTextReadOffset_char = displayTextReadOffset_px/start_page_a.charFont * dsp_getTextboxWidthInChar(&start_page_a);
 		dsp_sb_setBarPosition(&scroll, (float)(displayTextReadOffset_char+fileTextReadOffset_char)/file_getCurrentFileSize());
 		start_page_a.lineOffset_px = displayTextReadOffset_px;
 		dsp_fillTextBoxWithText(&start_page_a);
@@ -338,9 +339,9 @@ void menu_showMenu(menuStates_t menu, uint8_t menu_changed) {
 		dsp_printLineToMemory(displayData, 8, 0, 0, (uint8_t*)"Settings", 8,256, 32, 0);
 
 		dsp_printLineToMemory(displayData, 8, 40, 8, (uint8_t*)"Set font", 8,256, 32, 0);
-		dsp_printLineToMemory(displayData, 8, 175, 8, (uint8_t*)"  8x5 ", 8,256, 32, menu_item_selector==0);
-		dsp_printLineToMemory(displayData, 8, 175, 16, (uint8_t*)" 12x8 ", 8,256, 32, menu_item_selector==1);
-		dsp_printLineToMemory(displayData, 8, 175, 24, (uint8_t*)"16x10 ", 8,256, 32, menu_item_selector==2);
+		dsp_printLineToMemory(displayData, 8, 175, 8, (uint8_t*)"  8x5 ", 8,256, 32, readTextFontSize==8);
+		dsp_printLineToMemory(displayData, 8, 175, 16, (uint8_t*)" 12x8 ", 8,256, 32, readTextFontSize==12);
+		dsp_printLineToMemory(displayData, 8, 175, 24, (uint8_t*)"16x10 ", 8,256, 32, readTextFontSize==16);
 		if(menu_item_selector == 0 ){
 			dsp_setTbPosition(&item_select,210, 8);
 		} else if(menu_item_selector == 1 ){
@@ -418,6 +419,7 @@ void menu_logicStateMachine(menuEvent_t event) {
 					dsp_text_DeleteTextbox(&start_page_b);
 					dsp_text_DeleteTextbox(&item_select);
 					state = MENU_START_PAGE;
+					menu_item_selector = 0;
 					break;
 				case EVENT_ENTER:
 					{
@@ -482,6 +484,7 @@ void menu_logicStateMachine(menuEvent_t event) {
 					break;
 				case EVENT_EXIT:
 					menu_changed = 1;
+					menu_item_selector = 0;
 					dsp_text_DeleteTextbox(&start_page_a);
 					state = MENU_START_PAGE;
 					break;
@@ -505,6 +508,7 @@ void menu_logicStateMachine(menuEvent_t event) {
 					menu_changed = 1;
 					dsp_text_DeleteTextbox(&item_select);
 					state = MENU_START_PAGE;
+					menu_item_selector = 0;
 					break;
 				case EVENT_ENTER:
 					if(menu_item_selector == 0) readTextFontSize = 8;
